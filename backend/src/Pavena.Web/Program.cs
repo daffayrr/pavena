@@ -17,29 +17,40 @@ builder.Services.AddRazorComponents()
 builder.Services.AddScoped<IThemeService, ThemeService>();
 builder.Services.AddScoped<IToastService, ToastService>();
 builder.Services.AddScoped<IScholarSessionService, ScholarSessionService>();
+builder.Services.AddTransient<AuthenticationHeaderHandler>();
 
 // Backend API Clients
 var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5181";
+
+builder.Services.AddHttpClient<IAuthClient, AuthClient>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
+});
+
 builder.Services.AddHttpClient<IAcademicProfileClient, AcademicProfileClient>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
-});
+}).AddHttpMessageHandler<AuthenticationHeaderHandler>();
+
 builder.Services.AddHttpClient<IProjectClient, ProjectClient>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
-});
+}).AddHttpMessageHandler<AuthenticationHeaderHandler>();
+
 builder.Services.AddHttpClient<IDocumentClient, DocumentClient>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
-});
+}).AddHttpMessageHandler<AuthenticationHeaderHandler>();
+
 builder.Services.AddHttpClient<IChallengeClient, ChallengeClient>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
-});
+}).AddHttpMessageHandler<AuthenticationHeaderHandler>();
+
 builder.Services.AddHttpClient<IProposalClient, ProposalClient>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
-});
+}).AddHttpMessageHandler<AuthenticationHeaderHandler>();
 
 var app = builder.Build();
 
@@ -48,9 +59,9 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 

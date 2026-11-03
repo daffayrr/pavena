@@ -1,12 +1,21 @@
-@if (Type == "spinner")
+@if (!string.IsNullOrWhiteSpace(ResolvedText))
 {
-    <div class="pv-spinner @Class" style="@GetSpinnerStyle()" role="status" aria-label="Memuat...">
+    <div class="pv-loading-container @Class" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; padding: 2rem 1rem; text-align: center;" @attributes="AdditionalAttributes">
+        <div class="pv-spinner" style="width: @(Size > 24 ? Size : 32)px; height: @(Size > 24 ? Size : 32)px;" role="status" aria-label="@ResolvedText">
+            <span class="sr-only">@ResolvedText</span>
+        </div>
+        <p style="color: var(--pv-color-text-muted, #64748b); font-size: 0.875rem; margin: 0;">@ResolvedText</p>
+    </div>
+}
+else if (Type == "spinner")
+{
+    <div class="pv-spinner @Class" style="@GetSpinnerStyle()" role="status" aria-label="Memuat..." @attributes="AdditionalAttributes">
         <span class="sr-only">Memuat...</span>
     </div>
 }
 else if (Type == "feed-card")
 {
-    <div class="pv-card" style="padding: 1.25rem; margin-bottom: 1rem;">
+    <div class="pv-card @Class" style="padding: 1.25rem; margin-bottom: 1rem;" @attributes="AdditionalAttributes">
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
             <div class="pv-skeleton pv-skeleton-circle"></div>
             <div style="flex: 1;">
@@ -24,17 +33,23 @@ else
     <div class="pv-skeleton @(Circle ? "pv-skeleton-circle" : "pv-skeleton-text") @Class"
          style="@Style"
          role="status"
-         aria-label="Memuat...">
+         aria-label="Memuat..."
+         @attributes="AdditionalAttributes">
         <span class="sr-only">Memuat...</span>
     </div>
 }
 
 @code {
     [Parameter] public string Type { get; set; } = "skeleton"; // "spinner", "skeleton", "feed-card"
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public string? Message { get; set; }
     [Parameter] public int Size { get; set; } = 24;
     [Parameter] public bool Circle { get; set; }
     [Parameter] public string? Style { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string? ResolvedText => !string.IsNullOrWhiteSpace(Text) ? Text : Message;
 
     private string GetSpinnerStyle() => $"width: {Size}px; height: {Size}px; {Style}";
 }

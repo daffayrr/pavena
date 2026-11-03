@@ -52,7 +52,8 @@ public class DatabaseSeeder
         var superadminEmail = _configuration["SUPERADMIN_EMAIL"] ?? "superadmin@pavena.local";
         var superadminPassword = _configuration["SUPERADMIN_PASSWORD"] ?? "PavenaAdmin#2026";
 
-        var existingSuperadmin = await _userManager.FindByEmailAsync(superadminEmail);
+        var existingSuperadmin = await _userManager.FindByEmailAsync(superadminEmail)
+            ?? await _userManager.FindByNameAsync("superadmin");
         if (existingSuperadmin == null)
         {
             var adminUser = new User(superadminEmail, "superadmin")
@@ -85,6 +86,14 @@ public class DatabaseSeeder
             {
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                 _logger.LogWarning("Failed to bootstrap superadmin: {Errors}", errors);
+            }
+        }
+        else
+        {
+            if (!await _userManager.IsInRoleAsync(existingSuperadmin, PlatformRole.Superadmin))
+            {
+                await _userManager.AddToRoleAsync(existingSuperadmin, PlatformRole.Superadmin);
+                _logger.LogInformation("Assigned Superadmin role to existing account: {Email}", existingSuperadmin.Email);
             }
         }
     }

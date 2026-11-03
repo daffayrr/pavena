@@ -1,4 +1,4 @@
-<div class="pv-empty-state @Class">
+<div class="pv-empty-state @Class" @attributes="AdditionalAttributes">
     <div class="pv-empty-icon" aria-hidden="true">
         @if (CustomIcon != null)
         {
@@ -15,9 +15,9 @@
 
     <h4 class="pv-empty-title">@Title</h4>
     
-    @if (!string.IsNullOrWhiteSpace(Description))
+    @if (!string.IsNullOrWhiteSpace(ResolvedDescription))
     {
-        <p class="pv-empty-desc">@Description</p>
+        <p class="pv-empty-desc">@ResolvedDescription</p>
     }
 
     @if (ActionContent != null)
@@ -26,12 +26,39 @@
             @ActionContent
         </div>
     }
+    else if (EffectiveActionCallback.HasDelegate && !string.IsNullOrWhiteSpace(ResolvedActionText))
+    {
+        <div class="pv-empty-action">
+            <PvButton Variant="primary" Size="sm" OnClick="EffectiveActionCallback">
+                <span>@ResolvedActionText</span>
+            </PvButton>
+        </div>
+    }
 </div>
 
 @code {
     [Parameter] public string Title { get; set; } = "Belum Ada Data";
-    [Parameter] public string? Description { get; set; } = "Belum ada entri atau aktivitas ilmiah untuk ditampilkan di bagian ini.";
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public string? ActionText { get; set; }
+    [Parameter] public string? ButtonText { get; set; }
+    [Parameter] public EventCallback OnAction { get; set; }
+    [Parameter] public EventCallback OnActionClick { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
     [Parameter] public RenderFragment? CustomIcon { get; set; }
     [Parameter] public RenderFragment? ActionContent { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string ResolvedDescription => !string.IsNullOrWhiteSpace(Description)
+        ? Description
+        : (!string.IsNullOrWhiteSpace(Message) ? Message : "Belum ada entri atau aktivitas ilmiah untuk ditampilkan di bagian ini.");
+
+    private string? ResolvedActionText => !string.IsNullOrWhiteSpace(ActionText)
+        ? ActionText
+        : ButtonText;
+
+    private EventCallback EffectiveActionCallback => OnAction.HasDelegate
+        ? OnAction
+        : (OnActionClick.HasDelegate ? OnActionClick : OnClick);
 }

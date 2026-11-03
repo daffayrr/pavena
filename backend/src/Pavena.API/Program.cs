@@ -88,6 +88,9 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Core REST API for Pavena modular monolith."
     });
 
+    options.CustomSchemaIds(type => type.FullName?.Replace("+", "."));
+    options.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -151,6 +154,15 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // 9. Endpoints & Probes
+app.MapGet("/", () => Results.Ok(new
+{
+    service = "Pavena Academic Collaboration Platform API",
+    version = "1.0.0",
+    status = "online",
+    docs = "/swagger",
+    health = "/health"
+})).AllowAnonymous();
+
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {

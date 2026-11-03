@@ -48,12 +48,13 @@ public class StorageController : ControllerBase
     }
 
     [HttpPost("upload")]
+    [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadFile(
         [FromQuery] string key,
         [FromQuery] long expires,
         [FromQuery] long size,
         [FromQuery] string sig,
-        IFormFile? file,
+        [FromForm] IFormFile? file,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(key) || expires <= 0 || string.IsNullOrWhiteSpace(sig))

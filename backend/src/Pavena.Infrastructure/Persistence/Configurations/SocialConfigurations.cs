@@ -118,7 +118,8 @@ public class PostConfiguration : IEntityTypeConfiguration<Post>
             .HasConversion<string>()
             .HasMaxLength(50)
             .IsRequired()
-            .HasDefaultValue(PostCategory.GeneralAcademic);
+            .HasDefaultValue(PostCategory.GeneralAcademic)
+            .HasSentinel((PostCategory)0);
 
         builder.Property(p => p.ConcurrencyStamp)
             .HasMaxLength(36)

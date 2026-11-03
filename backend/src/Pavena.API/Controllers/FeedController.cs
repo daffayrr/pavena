@@ -18,7 +18,6 @@ public class FeedController : ControllerBase
     }
 
     [HttpGet]
-    [HttpGet("network")]
     public async Task<IActionResult> GetMyNetworkFeed(
         [FromQuery] int limit = 20,
         [FromQuery] string? cursor = null,
@@ -30,6 +29,15 @@ public class FeedController : ControllerBase
 
         var feed = await _feedService.GetMyNetworkFeedAsync(callerUserId.Value, limit, cursor, cancellationToken);
         return Ok(feed);
+    }
+
+    [HttpGet("network")]
+    public async Task<IActionResult> GetNetworkFeed(
+        [FromQuery] int limit = 20,
+        [FromQuery] string? cursor = null,
+        CancellationToken cancellationToken = default)
+    {
+        return await GetMyNetworkFeed(limit, cursor, cancellationToken);
     }
 
     [HttpGet("discover")]

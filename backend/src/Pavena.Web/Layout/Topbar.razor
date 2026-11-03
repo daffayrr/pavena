@@ -1,4 +1,6 @@
 @inject NavigationManager Navigation
+@inject Pavena.Web.Services.Auth.IScholarSessionService SessionService
+@implements IDisposable
 
 <header class="pv-topbar">
     <div class="pv-topbar-left">
@@ -36,8 +38,8 @@
         <PvDropdown Align="right">
             <Trigger>
                 <button type="button" class="pv-btn pv-btn-ghost" style="padding: 2px 6px; border-radius: var(--pv-radius-full); display: flex; align-items: center; gap: 8px;" aria-label="Menu Akun">
-                    <PvAvatar Name="Dr. Marie Curie" Size="sm" Status="online" />
-                    <span style="font-size: 0.875rem; font-weight: 500; display: inline-block; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Dr. Marie Curie</span>
+                    <PvAvatar Name="@EffectiveDisplayName" Size="sm" Status="online" />
+                    <span style="font-size: 0.875rem; font-weight: 500; display: inline-block; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@EffectiveDisplayName</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-text-muted);">
                         <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
@@ -45,10 +47,10 @@
             </Trigger>
             <ChildContent>
                 <div style="padding: 0.75rem 0.85rem; border-bottom: 1px solid var(--pv-color-border);">
-                    <div style="font-weight: 600; font-size: 0.875rem; color: var(--pv-color-text);">Dr. Marie Curie</div>
-                    <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">marie.curie@sorbonne.ac.fr</div>
+                    <div style="font-weight: 600; font-size: 0.875rem; color: var(--pv-color-text);">@EffectiveDisplayName</div>
+                    <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">@EffectiveEmail</div>
                     <div style="margin-top: 4px;">
-                        <PvBadge Variant="primary">Peneliti Utama</PvBadge>
+                        <PvBadge Variant="primary">Peneliti Terverifikasi</PvBadge>
                     </div>
                 </div>
 
@@ -105,6 +107,24 @@
 @code {
     [Parameter] public EventCallback OnToggleMobileNav { get; set; }
 
+    private string EffectiveDisplayName => !string.IsNullOrWhiteSpace(SessionService.CurrentDisplayName)
+        ? SessionService.CurrentDisplayName
+        : "Akun Peneliti";
+
+    private string EffectiveEmail => !string.IsNullOrWhiteSpace(SessionService.CurrentEmail)
+        ? SessionService.CurrentEmail
+        : "scholar@pavena.local";
+
+    protected override void OnInitialized()
+    {
+        SessionService.OnSessionChanged += HandleSessionChanged;
+    }
+
+    private void HandleSessionChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
     private void HandleSearch(string query)
     {
         if (!string.IsNullOrWhiteSpace(query))
@@ -115,6 +135,12 @@
 
     private void HandleLogout()
     {
-        Navigation.NavigateTo("/login");
+        SessionService.ClearSession();
+        Navigation.NavigateTo("/");
+    }
+
+    public void Dispose()
+    {
+        SessionService.OnSessionChanged -= HandleSessionChanged;
     }
 }

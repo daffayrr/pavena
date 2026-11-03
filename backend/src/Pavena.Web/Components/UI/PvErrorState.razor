@@ -1,4 +1,4 @@
-<div class="pv-error-state @Class" role="alert">
+<div class="pv-error-state @Class" role="alert" @attributes="AdditionalAttributes">
     <div class="pv-error-icon" aria-hidden="true">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
@@ -9,27 +9,51 @@
 
     <h4 class="pv-error-title">@Title</h4>
 
-    @if (!string.IsNullOrWhiteSpace(Message))
+    @if (!string.IsNullOrWhiteSpace(ResolvedMessage))
     {
-        <p class="pv-error-desc">@Message</p>
+        <p class="pv-error-desc">@ResolvedMessage</p>
     }
 
-    @if (OnRetry.HasDelegate)
+    @if (ActionContent != null)
     {
-        <PvButton Variant="danger" Size="sm" OnClick="OnRetry">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="23 4 23 10 17 10"></polyline>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-            </svg>
-            <span>@RetryLabel</span>
-        </PvButton>
+        <div class="pv-error-action" style="margin-top: 1rem;">
+            @ActionContent
+        </div>
+    }
+    else if (EffectiveCallback.HasDelegate)
+    {
+        <div style="margin-top: 1rem;">
+            <PvButton Variant="danger" Size="sm" OnClick="EffectiveCallback">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+                <span>@ResolvedButtonText</span>
+            </PvButton>
+        </div>
     }
 </div>
 
 @code {
     [Parameter] public string Title { get; set; } = "Gagal Memuat Data";
-    [Parameter] public string? Message { get; set; } = "Terjadi kendala teknis saat menyinkronkan data ilmiah. Silakan coba lagi.";
-    [Parameter] public string RetryLabel { get; set; } = "Coba Lagi";
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string? RetryLabel { get; set; }
+    [Parameter] public string? RetryText { get; set; }
+    [Parameter] public string? ActionText { get; set; }
     [Parameter] public EventCallback OnRetry { get; set; }
+    [Parameter] public EventCallback OnAction { get; set; }
+    [Parameter] public RenderFragment? ActionContent { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string ResolvedMessage => !string.IsNullOrWhiteSpace(Message)
+        ? Message
+        : (!string.IsNullOrWhiteSpace(Description) ? Description : "Terjadi kendala teknis saat menyinkronkan data ilmiah. Silakan coba lagi.");
+
+    private string ResolvedButtonText => !string.IsNullOrWhiteSpace(ActionText)
+        ? ActionText
+        : (!string.IsNullOrWhiteSpace(RetryText) ? RetryText : (!string.IsNullOrWhiteSpace(RetryLabel) ? RetryLabel : "Coba Lagi"));
+
+    private EventCallback EffectiveCallback => OnRetry.HasDelegate ? OnRetry : OnAction;
 }

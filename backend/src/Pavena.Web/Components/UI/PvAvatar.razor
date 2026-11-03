@@ -1,11 +1,11 @@
-<div class="pv-avatar pv-avatar-@Size @Class" title="@Name" aria-label="@Name">
-    @if (!string.IsNullOrWhiteSpace(ImageUrl))
+<div class="pv-avatar @SizeClass @Class" title="@ResolvedName" aria-label="@ResolvedName" style="@CustomInlineStyle" @attributes="AdditionalAttributes">
+    @if (!string.IsNullOrWhiteSpace(EffectiveUrl))
     {
-        <img src="@ImageUrl" alt="@Name" loading="lazy" />
+        <img src="@EffectiveUrl" alt="@ResolvedName" loading="lazy" />
     }
     else
     {
-        <span>@GetInitials(Name)</span>
+        <span>@GetInitials(ResolvedName)</span>
     }
 
     @if (!string.IsNullOrWhiteSpace(Status))
@@ -16,10 +16,39 @@
 
 @code {
     [Parameter] public string? ImageUrl { get; set; }
+    [Parameter] public string? Url { get; set; }
+    [Parameter] public string? AvatarUrl { get; set; }
     [Parameter] public string? Name { get; set; }
+    [Parameter] public string? DisplayName { get; set; }
     [Parameter] public string Size { get; set; } = "md";
     [Parameter] public string? Status { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string? EffectiveUrl => !string.IsNullOrWhiteSpace(ImageUrl)
+        ? ImageUrl
+        : (!string.IsNullOrWhiteSpace(Url) ? Url : AvatarUrl);
+
+    private string ResolvedName => !string.IsNullOrWhiteSpace(DisplayName)
+        ? DisplayName
+        : (!string.IsNullOrWhiteSpace(Name) ? Name : "Pavena User");
+
+    private bool IsNumericSize => int.TryParse(Size, out _);
+
+    private string SizeClass => IsNumericSize ? "pv-avatar-md" : $"pv-avatar-{Size}";
+
+    private string? CustomInlineStyle
+    {
+        get
+        {
+            if (int.TryParse(Size, out var px))
+            {
+                var fontSize = Math.Max(12, px / 3);
+                return $"width: {px}px; height: {px}px; min-width: {px}px; min-height: {px}px; font-size: {fontSize}px;";
+            }
+            return null;
+        }
+    }
 
     private static string GetInitials(string? name)
     {
