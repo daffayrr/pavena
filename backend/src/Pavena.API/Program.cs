@@ -1,6 +1,10 @@
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi.Models;
 using Pavena.API.Authorization;
+using Pavena.API.Health;
 using Pavena.API.Middleware;
 using Pavena.API.Services;
 using Pavena.Application;
@@ -35,7 +39,39 @@ builder.Services.AddAuthorization(options =>
         policy.RequireRole(PlatformRole.Superadmin, PlatformRole.PlatformAdmin));
 });
 
-// 5. Controllers & OpenAPI / Swagger
+// 5. Health Checks
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "ready", "db" });
+
+// 6. Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.ContentType = "application/problem+json";
+        await context.HttpContext.Response.WriteAsync(
+            "{\"type\":\"https://httpstatuses.com/429\",\"title\":\"Too Many Requests\",\"status\":429,\"detail\":\"Rate limit exceeded. Please retry after some time.\"}",
+            token);
+    };
+
+    options.AddFixedWindowLimiter("auth", opt =>
+    {
+        opt.PermitLimit = 60;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+
+    options.AddSlidingWindowLimiter("general", opt =>
+    {
+        opt.PermitLimit = 600;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.SegmentsPerWindow = 6;
+        opt.QueueLimit = 10;
+    });
+});
+
+// 7. Controllers & OpenAPI / Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -82,8 +118,10 @@ using (var scope = app.Services.CreateScope())
     await seeder.SeedAsync();
 }
 
-// 7. HTTP Request Pipeline
+// 8. HTTP Request Pipeline
+app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {
@@ -95,6 +133,17 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// 9. Endpoints & Probes
+app.MapHealthChecks("/health");
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false
+});
 
 app.MapControllers();
 

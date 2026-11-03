@@ -47,6 +47,12 @@
                 <a href="/profile/@Post.AuthorUserId" style="font-weight: 700; font-size: 1.125rem; color: var(--pv-color-text); text-decoration: none;">
                     @Post.AuthorDisplayName
                 </a>
+                @if (!string.IsNullOrWhiteSpace(Post.AuthorHeadline) || !string.IsNullOrWhiteSpace(Post.AuthorInstitution))
+                {
+                    <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin-top: 1px;">
+                        @Post.AuthorHeadline @(!string.IsNullOrWhiteSpace(Post.AuthorHeadline) && !string.IsNullOrWhiteSpace(Post.AuthorInstitution) ? "•" : "") @Post.AuthorInstitution
+                    </div>
+                }
                 <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin-top: 2px;">
                     Dipublikasikan pada @FormattedFullDate
                     @if (Post.EditedAtUtc.HasValue)
@@ -178,7 +184,7 @@
         if (string.IsNullOrWhiteSpace(Post.Content))
         {
             _cleanBody = string.Empty;
-            _extractedCategory = null;
+            _extractedCategory = FormatCategory(Post.Category);
             return;
         }
 
@@ -193,8 +199,25 @@
             }
         }
 
-        _extractedCategory = null;
+        _extractedCategory = FormatCategory(Post.Category);
         _cleanBody = Post.Content;
+    }
+
+    private static string? FormatCategory(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category) || category.Equals("GeneralAcademic", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return category switch
+        {
+            "ResearchUpdate" => "Research Update",
+            "ResearchFinding" => "Research Finding",
+            "AcademicDiscussion" => "Academic Discussion",
+            "Publication" => "Publication",
+            "CollaborationOpportunity" => "Collaboration Opportunity",
+            "ConferenceAndEvent" => "Conference & Event",
+            _ => category
+        };
     }
 
     private void HandleAppreciation()

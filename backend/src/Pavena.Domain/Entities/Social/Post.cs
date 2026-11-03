@@ -14,6 +14,7 @@ public class Post : BaseEntity
     public string Content { get; private set; } = string.Empty;
     public PostVisibility Visibility { get; private set; } = PostVisibility.Public;
     public PostStatus Status { get; private set; } = PostStatus.Draft;
+    public PostCategory Category { get; private set; } = PostCategory.GeneralAcademic;
     public DateTime UpdatedAtUtc { get; private set; } = DateTime.UtcNow;
     public DateTime? PublishedAtUtc { get; private set; }
     public DateTime? EditedAtUtc { get; private set; }
@@ -29,7 +30,7 @@ public class Post : BaseEntity
     {
     }
 
-    public static Post CreateDraft(Guid authorId, string content, PostVisibility visibility)
+    public static Post CreateDraft(Guid authorId, string content, PostVisibility visibility, PostCategory category = PostCategory.GeneralAcademic)
     {
         ValidateAuthor(authorId);
         ValidateContentLength(content);
@@ -39,6 +40,7 @@ public class Post : BaseEntity
             AuthorUserId = authorId,
             Content = content,
             Visibility = visibility,
+            Category = category,
             Status = PostStatus.Draft,
             PublishedAtUtc = null,
             EditedAtUtc = null,
@@ -47,7 +49,7 @@ public class Post : BaseEntity
         };
     }
 
-    public static Post CreatePublished(Guid authorId, string content, PostVisibility visibility)
+    public static Post CreatePublished(Guid authorId, string content, PostVisibility visibility, PostCategory category = PostCategory.GeneralAcademic)
     {
         ValidateAuthor(authorId);
         ValidatePublishedContent(content);
@@ -58,6 +60,7 @@ public class Post : BaseEntity
             AuthorUserId = authorId,
             Content = content,
             Visibility = visibility,
+            Category = category,
             Status = PostStatus.Published,
             PublishedAtUtc = now,
             EditedAtUtc = null,
@@ -88,7 +91,7 @@ public class Post : BaseEntity
         ConcurrencyStamp = Guid.NewGuid().ToString();
     }
 
-    public void UpdateContent(Guid callerUserId, string newContent, PostVisibility newVisibility)
+    public void UpdateContent(Guid callerUserId, string newContent, PostVisibility newVisibility, PostCategory? newCategory = null)
     {
         EnsureNotDeleted();
         EnsureAuthor(callerUserId);
@@ -104,6 +107,10 @@ public class Post : BaseEntity
 
         Content = newContent;
         Visibility = newVisibility;
+        if (newCategory.HasValue)
+        {
+            Category = newCategory.Value;
+        }
         EditedAtUtc = DateTime.UtcNow;
         UpdatedAtUtc = DateTime.UtcNow;
         ConcurrencyStamp = Guid.NewGuid().ToString();
@@ -148,6 +155,20 @@ public class Post : BaseEntity
         };
 
         Attachments.Add(attachment);
+        UpdatedAtUtc = DateTime.UtcNow;
+        ConcurrencyStamp = Guid.NewGuid().ToString();
+        return attachment;
+    }
+
+    public PostAttachment RemoveAttachment(Guid attachmentId, Guid callerUserId)
+    {
+        EnsureNotDeleted();
+        EnsureAuthor(callerUserId);
+
+        var attachment = Attachments.FirstOrDefault(a => a.Id == attachmentId)
+            ?? throw new DomainException($"Attachment {attachmentId} was not found on this post.");
+
+        Attachments.Remove(attachment);
         UpdatedAtUtc = DateTime.UtcNow;
         ConcurrencyStamp = Guid.NewGuid().ToString();
         return attachment;

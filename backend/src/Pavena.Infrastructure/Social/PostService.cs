@@ -18,15 +18,18 @@ public class PostService : IPostService
     private readonly IPavenaDbContext _dbContext;
     private readonly IAuthorizationService _authorizationService;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IObjectStorageService _objectStorageService;
 
     public PostService(
         IPavenaDbContext dbContext,
         IAuthorizationService authorizationService,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IObjectStorageService objectStorageService)
     {
         _dbContext = dbContext;
         _authorizationService = authorizationService;
         _httpContextAccessor = httpContextAccessor;
+        _objectStorageService = objectStorageService;
     }
 
     public async Task<PostDto> CreatePostAsync(Guid authorId, CreatePostRequest request, CancellationToken cancellationToken = default)
@@ -39,9 +42,11 @@ public class PostService : IPostService
         if (!Enum.TryParse<PostVisibility>(request.Visibility, true, out var visibility))
             visibility = PostVisibility.Public;
 
+        var category = ParseCategory(request.Category, request.Content);
+
         Post post = request.PublishImmediately
-            ? Post.CreatePublished(authorId, request.Content, visibility)
-            : Post.CreateDraft(authorId, request.Content, visibility);
+            ? Post.CreatePublished(authorId, request.Content, visibility, category)
+            : Post.CreateDraft(authorId, request.Content, visibility, category);
 
         if (request.Attachments != null && request.Attachments.Count > 0)
         {
@@ -63,6 +68,9 @@ public class PostService : IPostService
             .Include(p => p.Attachments)
             .Include(p => p.AuthorUser)
                 .ThenInclude(u => u!.Profile)
+            .Include(p => p.AuthorUser)
+                .ThenInclude(u => u!.Memberships)
+                    .ThenInclude(m => m.Organization)
             .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted, cancellationToken);
 
         if (post == null)
@@ -85,6 +93,9 @@ public class PostService : IPostService
             .Include(p => p.Attachments)
             .Include(p => p.AuthorUser)
                 .ThenInclude(u => u!.Profile)
+            .Include(p => p.AuthorUser)
+                .ThenInclude(u => u!.Memberships)
+                    .ThenInclude(m => m.Organization)
             .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted, cancellationToken);
 
         if (post == null)
@@ -100,7 +111,13 @@ public class PostService : IPostService
         if (!Enum.TryParse<PostVisibility>(request.Visibility, true, out var visibility))
             visibility = PostVisibility.Public;
 
-        post.UpdateContent(callerUserId, request.Content, visibility);
+        PostCategory? newCategory = null;
+        if (!string.IsNullOrWhiteSpace(request.Category) && Enum.TryParse<PostCategory>(request.Category, true, out var parsedCategory))
+        {
+            newCategory = parsedCategory;
+        }
+
+        post.UpdateContent(callerUserId, request.Content, visibility, newCategory);
 
         try
         {
@@ -141,6 +158,9 @@ public class PostService : IPostService
             .Include(p => p.Attachments)
             .Include(p => p.AuthorUser)
                 .ThenInclude(u => u!.Profile)
+            .Include(p => p.AuthorUser)
+                .ThenInclude(u => u!.Memberships)
+                    .ThenInclude(m => m.Organization)
             .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted, cancellationToken);
 
         if (post == null)
@@ -165,6 +185,9 @@ public class PostService : IPostService
             .Include(p => p.Attachments)
             .Include(p => p.AuthorUser)
                 .ThenInclude(u => u!.Profile)
+            .Include(p => p.AuthorUser)
+                .ThenInclude(u => u!.Memberships)
+                    .ThenInclude(m => m.Organization)
             .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted, cancellationToken);
 
         if (post == null)
@@ -239,6 +262,54 @@ public class PostService : IPostService
         return posts.Select(MapToDto).ToList();
     }
 
+    public async Task<(string StorageKey, string FileName, string ContentType, long FileSizeBytes)> GetAttachmentDownloadInfoAsync(Guid callerUserId, Guid postId, Guid attachmentId, CancellationToken cancellationToken = default)
+    {
+        var post = await _dbContext.Posts
+            .Include(p => p.Attachments)
+            .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted, cancellationToken);
+
+        if (post == null)
+            throw new KeyNotFoundException("Post not found.");
+
+        var principal = GetUserPrincipal(callerUserId);
+        var authResult = await _authorizationService.AuthorizeAsync(principal, post, new ResourceOperationRequirement(ResourceOperation.Read));
+        if (!authResult.Succeeded)
+            throw new KeyNotFoundException("Post not found.");
+
+        var attachment = post.Attachments.FirstOrDefault(a => a.Id == attachmentId)
+            ?? throw new KeyNotFoundException("Attachment not found.");
+
+        return (attachment.StorageKey, attachment.FileName, attachment.ContentType, attachment.FileSizeBytes);
+    }
+
+    public async Task DeleteAttachmentAsync(Guid callerUserId, Guid postId, Guid attachmentId, CancellationToken cancellationToken = default)
+    {
+        var post = await _dbContext.Posts
+            .Include(p => p.Attachments)
+            .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted, cancellationToken);
+
+        if (post == null)
+            throw new KeyNotFoundException("Post not found.");
+
+        var principal = GetUserPrincipal(callerUserId);
+        var authResult = await _authorizationService.AuthorizeAsync(principal, post, new ResourceOperationRequirement(ResourceOperation.Delete));
+        if (!authResult.Succeeded)
+            throw new UnauthorizedAccessException("You are not authorized to delete attachments from this post.");
+
+        var attachment = post.Attachments.FirstOrDefault(a => a.Id == attachmentId)
+            ?? throw new KeyNotFoundException("Attachment not found.");
+
+        var storageKey = attachment.StorageKey;
+        post.RemoveAttachment(attachmentId, callerUserId);
+        _dbContext.PostAttachments.Remove(attachment);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(storageKey))
+        {
+            await _objectStorageService.DeleteObjectAsync(storageKey, cancellationToken);
+        }
+    }
+
     private ClaimsPrincipal GetUserPrincipal(Guid userId)
     {
         var httpUser = _httpContextAccessor.HttpContext?.User;
@@ -253,6 +324,33 @@ public class PostService : IPostService
         }, "TestAuth");
 
         return new ClaimsPrincipal(identity);
+    }
+
+    private static PostCategory ParseCategory(string? categoryString, string? content)
+    {
+        if (!string.IsNullOrWhiteSpace(categoryString))
+        {
+            var normalized = categoryString.Replace(" ", "").Replace("&", "And");
+            if (Enum.TryParse<PostCategory>(normalized, true, out var cat))
+                return cat;
+            if (Enum.TryParse<PostCategory>(categoryString, true, out var cat2))
+                return cat2;
+        }
+
+        // Backward compatibility: check if content starts with [CategoryName]
+        if (!string.IsNullOrWhiteSpace(content))
+        {
+            var trimmed = content.Trim();
+            if (trimmed.StartsWith("[Research Update]", StringComparison.OrdinalIgnoreCase)) return PostCategory.ResearchUpdate;
+            if (trimmed.StartsWith("[Research Finding]", StringComparison.OrdinalIgnoreCase)) return PostCategory.ResearchFinding;
+            if (trimmed.StartsWith("[Academic Discussion]", StringComparison.OrdinalIgnoreCase)) return PostCategory.AcademicDiscussion;
+            if (trimmed.StartsWith("[Publication]", StringComparison.OrdinalIgnoreCase)) return PostCategory.Publication;
+            if (trimmed.StartsWith("[Collaboration Opportunity]", StringComparison.OrdinalIgnoreCase)) return PostCategory.CollaborationOpportunity;
+            if (trimmed.StartsWith("[Conference & Event]", StringComparison.OrdinalIgnoreCase)) return PostCategory.ConferenceAndEvent;
+            if (trimmed.StartsWith("[General Academic]", StringComparison.OrdinalIgnoreCase)) return PostCategory.GeneralAcademic;
+        }
+
+        return PostCategory.GeneralAcademic;
     }
 
     private static PostDto MapToDto(Post post) => new(
@@ -272,6 +370,10 @@ public class PostService : IPostService
             a.ContentType,
             a.FileSizeBytes,
             a.CreatedAtUtc
-        )).ToList()
+        )).ToList(),
+        post.Category.ToString(),
+        post.AuthorUser?.Profile?.Headline,
+        post.AuthorUser?.Memberships?.FirstOrDefault(m => m.IsActive)?.Organization?.Name
+            ?? post.AuthorUser?.Memberships?.FirstOrDefault()?.Organization?.Name
     );
 }

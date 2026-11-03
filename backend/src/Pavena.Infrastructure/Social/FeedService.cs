@@ -63,6 +63,9 @@ public class FeedService : IFeedService
             .Include(p => p.Attachments)
             .Include(p => p.AuthorUser)
                 .ThenInclude(u => u!.Profile)
+            .Include(p => p.AuthorUser)
+                .ThenInclude(u => u!.Memberships)
+                    .ThenInclude(m => m.Organization)
             .Where(p => !p.IsDeleted && p.Status == PostStatus.Published);
 
         if (blockedUserIds.Count > 0)
@@ -104,6 +107,9 @@ public class FeedService : IFeedService
             .Include(p => p.Attachments)
             .Include(p => p.AuthorUser)
                 .ThenInclude(u => u!.Profile)
+            .Include(p => p.AuthorUser)
+                .ThenInclude(u => u!.Memberships)
+                    .ThenInclude(m => m.Organization)
             .Where(p => !p.IsDeleted &&
                         p.Status == PostStatus.Published &&
                         p.Visibility == PostVisibility.Public);
@@ -179,6 +185,10 @@ public class FeedService : IFeedService
             a.ContentType,
             a.FileSizeBytes,
             a.CreatedAtUtc
-        )).ToList()
+        )).ToList(),
+        post.Category.ToString(),
+        post.AuthorUser?.Profile?.Headline,
+        post.AuthorUser?.Memberships?.FirstOrDefault(m => m.IsActive)?.Organization?.Name
+            ?? post.AuthorUser?.Memberships?.FirstOrDefault()?.Organization?.Name
     );
 }

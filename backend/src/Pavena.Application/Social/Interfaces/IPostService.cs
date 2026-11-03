@@ -11,4 +11,6 @@ public interface IPostService
     Task<PostDto> PublishPostAsync(Guid callerUserId, Guid postId, CancellationToken cancellationToken = default);
     Task<PostDto> ArchivePostAsync(Guid callerUserId, Guid postId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PostDto>> GetUserPostsAsync(Guid callerUserId, Guid targetUserId, CancellationToken cancellationToken = default);
+    Task<(string StorageKey, string FileName, string ContentType, long FileSizeBytes)> GetAttachmentDownloadInfoAsync(Guid callerUserId, Guid postId, Guid attachmentId, CancellationToken cancellationToken = default);
+    Task DeleteAttachmentAsync(Guid callerUserId, Guid postId, Guid attachmentId, CancellationToken cancellationToken = default);
 }

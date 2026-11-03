@@ -181,7 +181,8 @@
                 contentToSave,
                 _visibility,
                 PublishImmediately: false,
-                Attachments: _attachments.Any() ? _attachments : null
+                Attachments: _attachments.Any() ? _attachments : null,
+                Category: _category
             );
 
             var post = await ProfileClient.CreatePostAsync(req);
@@ -218,7 +219,8 @@
                 contentToSave,
                 _visibility,
                 PublishImmediately: true,
-                Attachments: _attachments.Any() ? _attachments : null
+                Attachments: _attachments.Any() ? _attachments : null,
+                Category: _category
             );
 
             var post = await ProfileClient.CreatePostAsync(req);

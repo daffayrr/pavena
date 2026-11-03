@@ -13,6 +13,7 @@ using Pavena.Domain.Entities.Identity;
 using Pavena.Infrastructure.Identity;
 using Pavena.Infrastructure.Persistence;
 using Pavena.Infrastructure.Social;
+using Pavena.Infrastructure.Storage;
 
 namespace Pavena.Infrastructure;
 
@@ -102,6 +103,8 @@ public static class DependencyInjection
 
         // Application Service Implementations
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddSingleton<IMalwareScanner, MalwareScanner>();
+        services.AddSingleton<IObjectStorageService, PrivateObjectStorageService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IUserProfileService, UserProfileService>();
         services.AddScoped<IConnectionService, ConnectionService>();

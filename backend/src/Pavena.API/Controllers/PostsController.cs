@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pavena.Application.Common.Interfaces;
 using Pavena.Application.Social.DTOs;
 using Pavena.Application.Social.Interfaces;
 
@@ -13,15 +14,18 @@ namespace Pavena.API.Controllers;
 public class PostsController : ControllerBase
 {
     private readonly IPostService _postService;
+    private readonly IObjectStorageService _storageService;
     private readonly IValidator<CreatePostRequest> _createValidator;
     private readonly IValidator<UpdatePostRequest> _updateValidator;
 
     public PostsController(
         IPostService postService,
+        IObjectStorageService storageService,
         IValidator<CreatePostRequest> createValidator,
         IValidator<UpdatePostRequest> updateValidator)
     {
         _postService = postService;
+        _storageService = storageService;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
     }
@@ -109,6 +113,39 @@ public class PostsController : ControllerBase
 
         var post = await _postService.ArchivePostAsync(callerUserId.Value, postId, cancellationToken);
         return Ok(post);
+    }
+
+    [HttpGet("{postId:guid}/attachments/{attachmentId:guid}/download")]
+    public async Task<IActionResult> GetAttachmentDownloadUrl(Guid postId, Guid attachmentId, CancellationToken cancellationToken)
+    {
+        var callerUserId = GetCurrentUserId();
+        if (!callerUserId.HasValue)
+            return Unauthorized();
+
+        var (storageKey, fileName, contentType, sizeBytes) = await _postService.GetAttachmentDownloadInfoAsync(
+            callerUserId.Value, postId, attachmentId, cancellationToken);
+
+        var signedUrl = await _storageService.GenerateDownloadUrlAsync(storageKey, TimeSpan.FromMinutes(15), cancellationToken);
+
+        return Ok(new
+        {
+            downloadUrl = signedUrl,
+            fileName,
+            contentType,
+            sizeBytes,
+            expiresInMinutes = 15
+        });
+    }
+
+    [HttpDelete("{postId:guid}/attachments/{attachmentId:guid}")]
+    public async Task<IActionResult> DeleteAttachment(Guid postId, Guid attachmentId, CancellationToken cancellationToken)
+    {
+        var callerUserId = GetCurrentUserId();
+        if (!callerUserId.HasValue)
+            return Unauthorized();
+
+        await _postService.DeleteAttachmentAsync(callerUserId.Value, postId, attachmentId, cancellationToken);
+        return NoContent();
     }
 
     private Guid? GetCurrentUserId()

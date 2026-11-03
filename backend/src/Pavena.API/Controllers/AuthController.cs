@@ -2,12 +2,14 @@ using System.Security.Claims;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Pavena.Application.Identity.DTOs;
 using Pavena.Application.Identity.Interfaces;
 
 namespace Pavena.API.Controllers;
 
 [ApiController]
+[EnableRateLimiting("auth")]
 [Route("api/v1/[controller]")]
 public class AuthController : ControllerBase
 {

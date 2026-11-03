@@ -15,10 +15,14 @@
                 <a href="/profile/@Post.AuthorUserId" class="pv-post-author-name">
                     @Post.AuthorDisplayName
                 </a>
-                @if (!string.IsNullOrWhiteSpace(AuthorHeadline) || !string.IsNullOrWhiteSpace(AuthorInstitution))
+                @{
+                    var headline = AuthorHeadline ?? Post.AuthorHeadline;
+                    var inst = AuthorInstitution ?? Post.AuthorInstitution;
+                }
+                @if (!string.IsNullOrWhiteSpace(headline) || !string.IsNullOrWhiteSpace(inst))
                 {
                     <div style="font-size: 0.75rem; color: var(--pv-color-text-muted); margin-bottom: 2px;">
-                        @AuthorHeadline @(!string.IsNullOrWhiteSpace(AuthorHeadline) && !string.IsNullOrWhiteSpace(AuthorInstitution) ? "•" : "") @AuthorInstitution
+                        @headline @(!string.IsNullOrWhiteSpace(headline) && !string.IsNullOrWhiteSpace(inst) ? "•" : "") @inst
                     </div>
                 }
                 <div class="pv-post-timestamp">
@@ -177,7 +181,7 @@
         if (string.IsNullOrWhiteSpace(Post.Content))
         {
             _cleanBody = string.Empty;
-            _extractedCategory = null;
+            _extractedCategory = FormatCategory(Post.Category);
             return;
         }
 
@@ -192,8 +196,25 @@
             }
         }
 
-        _extractedCategory = null;
+        _extractedCategory = FormatCategory(Post.Category);
         _cleanBody = Post.Content;
+    }
+
+    private static string? FormatCategory(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category) || category.Equals("GeneralAcademic", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return category switch
+        {
+            "ResearchUpdate" => "Research Update",
+            "ResearchFinding" => "Research Finding",
+            "AcademicDiscussion" => "Academic Discussion",
+            "Publication" => "Publication",
+            "CollaborationOpportunity" => "Collaboration Opportunity",
+            "ConferenceAndEvent" => "Conference & Event",
+            _ => category
+        };
     }
 
     private void NavigateToDetail()

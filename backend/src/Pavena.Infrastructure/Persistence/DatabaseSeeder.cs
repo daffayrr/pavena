@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Pavena.Domain.Entities.Identity;
@@ -31,6 +32,9 @@ public class DatabaseSeeder
 
     public async Task SeedAsync()
     {
+        // 0. Ensure Pending Migrations are applied
+        await _dbContext.Database.MigrateAsync();
+
         // 1. Seed Platform Roles
         string[] roles = [PlatformRole.Superadmin, PlatformRole.PlatformAdmin];
 

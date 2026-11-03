@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Pavena.Domain.Entities.Social;
+using Pavena.Domain.Enums;
 
 namespace Pavena.Infrastructure.Persistence.Configurations;
 
@@ -113,6 +114,12 @@ public class PostConfiguration : IEntityTypeConfiguration<Post>
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.Property(p => p.Category)
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .IsRequired()
+            .HasDefaultValue(PostCategory.GeneralAcademic);
+
         builder.Property(p => p.ConcurrencyStamp)
             .HasMaxLength(36)
             .IsConcurrencyToken();
@@ -128,6 +135,9 @@ public class PostConfiguration : IEntityTypeConfiguration<Post>
 
         builder.HasIndex(p => new { p.PublishedAtUtc, p.Id })
             .HasDatabaseName("idx_posts_feed_composite");
+
+        builder.HasIndex(p => new { p.Category, p.Status, p.PublishedAtUtc })
+            .HasDatabaseName("idx_posts_category_status_published");
 
         builder.HasOne(p => p.AuthorUser)
             .WithMany()

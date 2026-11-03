@@ -4,7 +4,8 @@ public record CreatePostRequest(
     string Content,
     string Visibility,
     bool PublishImmediately = true,
-    List<CreateAttachmentRequest>? Attachments = null
+    List<CreateAttachmentRequest>? Attachments = null,
+    string? Category = null
 );
 
 public record CreateAttachmentRequest(
@@ -16,7 +17,8 @@ public record CreateAttachmentRequest(
 
 public record UpdatePostRequest(
     string Content,
-    string Visibility
+    string Visibility,
+    string? Category = null
 );
 
 public record PostDto(
@@ -30,7 +32,10 @@ public record PostDto(
     DateTime CreatedAtUtc,
     DateTime? PublishedAtUtc,
     DateTime? EditedAtUtc,
-    IReadOnlyList<PostAttachmentDto> Attachments
+    IReadOnlyList<PostAttachmentDto> Attachments,
+    string Category = "GeneralAcademic",
+    string? AuthorHeadline = null,
+    string? AuthorInstitution = null
 );
 
 public record PostAttachmentDto(

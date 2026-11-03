@@ -20,6 +20,10 @@ public class CreatePostRequestValidator : AbstractValidator<CreatePostRequest>
             .NotEmpty().WithMessage("Post visibility is required.")
             .IsEnumName(typeof(PostVisibility), caseSensitive: false).WithMessage("Visibility must be 'Public', 'Connections', or 'OnlyMe'.");
 
+        RuleFor(x => x.Category)
+            .IsEnumName(typeof(PostCategory), caseSensitive: false).WithMessage("Invalid post category.")
+            .When(x => !string.IsNullOrWhiteSpace(x.Category));
+
         RuleFor(x => x.Attachments)
             .Must(list => list == null || list.Count <= Post.MaxAttachmentsCount)
             .WithMessage($"Cannot attach more than {Post.MaxAttachmentsCount} files.");
@@ -59,5 +63,9 @@ public class UpdatePostRequestValidator : AbstractValidator<UpdatePostRequest>
         RuleFor(x => x.Visibility)
             .NotEmpty().WithMessage("Post visibility is required.")
             .IsEnumName(typeof(PostVisibility), caseSensitive: false).WithMessage("Visibility must be 'Public', 'Connections', or 'OnlyMe'.");
+
+        RuleFor(x => x.Category)
+            .IsEnumName(typeof(PostCategory), caseSensitive: false).WithMessage("Invalid post category.")
+            .When(x => !string.IsNullOrWhiteSpace(x.Category));
     }
 }

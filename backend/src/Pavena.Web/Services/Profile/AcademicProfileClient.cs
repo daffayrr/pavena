@@ -416,7 +416,10 @@ public class AcademicProfileClient : IAcademicProfileClient
                     a.ContentType,
                     a.FileSizeBytes,
                     DateTime.UtcNow
-                )).ToList() ?? new List<PostAttachmentDto>()
+                )).ToList() ?? new List<PostAttachmentDto>(),
+                request.Category ?? "GeneralAcademic",
+                _previewProfile?.Headline,
+                _previewProfile?.Affiliations?.FirstOrDefault()?.OrganizationName
             );
             return fallback;
         }

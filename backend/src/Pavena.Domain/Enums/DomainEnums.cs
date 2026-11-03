@@ -140,3 +140,14 @@ public enum PostStatus
     Published = 2,
     Archived = 3
 }
+
+public enum PostCategory
+{
+    ResearchUpdate = 1,
+    ResearchFinding = 2,
+    AcademicDiscussion = 3,
+    Publication = 4,
+    CollaborationOpportunity = 5,
+    ConferenceAndEvent = 6,
+    GeneralAcademic = 7
+}

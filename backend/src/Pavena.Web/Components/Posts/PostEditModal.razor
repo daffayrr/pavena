@@ -111,7 +111,7 @@
                 ? $"[{_category}]\n\n{_content.Trim()}"
                 : _content.Trim();
 
-            var req = new UpdatePostRequest(contentToSave, _visibility);
+            var req = new UpdatePostRequest(contentToSave, _visibility, _category);
             var updated = await ProfileClient.UpdatePostAsync(Post.Id, req);
             if (updated != null)
             {
