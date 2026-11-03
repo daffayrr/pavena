@@ -8,10 +8,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Pavena.Application.Common.Interfaces;
 using Pavena.Application.Identity.Interfaces;
+using Pavena.Application.Research.Interfaces;
 using Pavena.Application.Social.Interfaces;
 using Pavena.Domain.Entities.Identity;
 using Pavena.Infrastructure.Identity;
 using Pavena.Infrastructure.Persistence;
+using Pavena.Infrastructure.Research;
 using Pavena.Infrastructure.Social;
 using Pavena.Infrastructure.Storage;
 
@@ -112,6 +114,7 @@ public static class DependencyInjection
         services.AddScoped<IBlockService, BlockService>();
         services.AddScoped<IPostService, PostService>();
         services.AddScoped<IFeedService, FeedService>();
+        services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<DatabaseSeeder>();
 
         return services;

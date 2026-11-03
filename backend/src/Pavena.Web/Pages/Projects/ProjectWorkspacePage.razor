@@ -1,0 +1,898 @@
+@page "/projects/{Id:guid}"
+@rendermode InteractiveServer
+
+@using Pavena.Application.Research.DTOs
+@using Pavena.Web.Components.Common
+@using Pavena.Web.Services.Projects
+@using Pavena.Web.Services.Toast
+
+@inject IProjectClient ProjectClient
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+
+<PageTitle>@(_project?.Title ?? "Ruang Kerja Riset") — Pavena</PageTitle>
+
+@if (_isLoading)
+{
+    <div class="pv-container" style="max-width: 1100px; padding: 4rem 1rem; text-align: center;">
+        <div class="pv-spinner" style="margin-bottom: 1rem;"></div>
+        <p style="color: var(--pv-color-text-muted);">Memuat ruang kerja riset...</p>
+    </div>
+}
+else if (_project == null)
+{
+    <div class="pv-container" style="max-width: 800px; padding: 4rem 1rem; text-align: center;">
+        <div class="pv-card" style="padding: 3rem 1.5rem;">
+            <h2 style="color: var(--pv-color-text); margin-bottom: 0.5rem;">Ruang Kerja Riset Tidak Ditemukan</h2>
+            <p style="color: var(--pv-color-text-muted); margin-bottom: 1.5rem;">
+                Proyek ini mungkin bersifat privat atau tautan yang Anda tuju sudah tidak aktif.
+            </p>
+            <a href="projects" class="pv-btn pv-btn-primary">
+                Kembali ke Daftar Proyek
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="pv-container" style="max-width: 1140px; padding: 2rem 1rem;">
+        <!-- Breadcrumb -->
+        <div style="margin-bottom: 1rem;">
+            <a href="projects" style="color: var(--pv-color-text-muted); text-decoration: none; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.375rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Daftar Proyek Riset
+            </a>
+        </div>
+
+        <!-- Project Header Card -->
+        <div class="pv-card" style="padding: 1.75rem; border-radius: 12px; margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+                <div style="flex-grow: 1;">
+                    <!-- Badges Row -->
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                        @if (_project.OriginType == "ResearcherInitiated")
+                        {
+                            <span class="pv-badge pv-badge-primary" title="Inisiatif Peneliti">Jalur HULU (Riset Akademik)</span>
+                        }
+                        else if (_project.OriginType == "IndustryChallengeProposal")
+                        {
+                            <span class="pv-badge pv-badge-secondary" title="Kemitraan Industri">Jalur HILIR (Tantangan Industri)</span>
+                        }
+                        else
+                        {
+                            <span class="pv-badge pv-badge-neutral">@_project.OriginType</span>
+                        }
+
+                        <span class="pv-stage-badge pv-stage-@_project.Stage.ToLowerInvariant()">
+                            Tahapan: @_project.Stage
+                        </span>
+
+                        <span class="pv-badge pv-badge-outline">
+                            Status: @_project.Status
+                        </span>
+
+                        <span class="pv-badge pv-badge-neutral">
+                            Akses: @_project.Visibility
+                        </span>
+                    </div>
+
+                    <!-- Title & Field -->
+                    <h1 style="font-size: 1.625rem; font-weight: 700; color: var(--pv-color-text); line-height: 1.35; margin: 0 0 0.5rem 0;">
+                        @_project.Title
+                    </h1>
+
+                    <div style="font-size: 0.875rem; color: var(--pv-color-text-muted); display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                        @if (!string.IsNullOrWhiteSpace(_project.ResearchField))
+                        {
+                            <span>🔬 @_project.ResearchField</span>
+                            <span>•</span>
+                        }
+                        <span>Pimpinan: <strong>@(_project.OwnerDisplayName ?? _project.OwnerOrganizationName ?? "Peneliti")</strong></span>
+                        <span>•</span>
+                        <span>Dibuat: @_project.CreatedAtUtc.ToString("dd MMM yyyy")</span>
+                    </div>
+                </div>
+
+                <!-- Action Controls (Advance Stage / Status) -->
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <button class="pv-btn pv-btn-sm pv-btn-ghost" @onclick="() => _showStageModal = true">
+                        ⏩ Majukan Tahapan
+                    </button>
+                    <button class="pv-btn pv-btn-sm pv-btn-ghost" @onclick="() => _showStatusModal = true">
+                        ⚙️ Ubah Status
+                    </button>
+                    <button class="pv-btn pv-btn-sm pv-btn-primary" @onclick="() => _showInviteModal = true">
+                        ➕ Undang Anggota
+                    </button>
+                </div>
+            </div>
+
+            <!-- Workflow Stage Progress Bar -->
+            <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--pv-color-border);">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--pv-color-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">
+                    Progres Kematangan Riset
+                </div>
+                <div class="pv-stage-tracker">
+                    @{
+                        var stages = new[] { "Concept", "Proposal", "ActiveResearch", "DataAnalysis", "PublicationReview", "Completed" };
+                        var currentIdx = Array.IndexOf(stages, _project.Stage);
+                        if (currentIdx < 0) currentIdx = 0;
+                    }
+                    @for (int i = 0; i < stages.Length; i++)
+                    {
+                        var s = stages[i];
+                        var isCompleted = i < currentIdx;
+                        var isCurrent = i == currentIdx;
+                        <div class="pv-stage-step @(isCompleted ? "is-completed" : "") @(isCurrent ? "is-current" : "")">
+                            <div class="pv-stage-dot">
+                                @if (isCompleted)
+                                {
+                                    <span>✓</span>
+                                }
+                                else
+                                {
+                                    <span>@(i + 1)</span>
+                                }
+                            </div>
+                            <span class="pv-stage-name">@s</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div style="display: flex; gap: 1rem; border-bottom: 1px solid var(--pv-color-border); margin-bottom: 1.5rem; overflow-x: auto;">
+            <button class="pv-tab-btn @(_currentTab == "overview" ? "active" : "")" @onclick="@(() => _currentTab = "overview")">
+                📖 Ringkasan & Metodologi
+            </button>
+            <button class="pv-tab-btn @(_currentTab == "members" ? "active" : "")" @onclick="@(() => _currentTab = "members")">
+                👥 Tim Peneliti (@_project.Members.Count)
+            </button>
+            <button class="pv-tab-btn @(_currentTab == "milestones" ? "active" : "")" @onclick="@(() => _currentTab = "milestones")">
+                🎯 Target Capaian / Milestones (@_project.Milestones.Count)
+            </button>
+            <button class="pv-tab-btn @(_currentTab == "tasks" ? "active" : "")" @onclick="@(() => _currentTab = "tasks")">
+                📋 Manajemen Tugas (@_project.Tasks.Count)
+            </button>
+            <button class="pv-tab-btn @(_currentTab == "timeline" ? "active" : "")" @onclick="LoadTimelineAsync">
+                📜 Riwayat Aktivitas & Audit
+            </button>
+        </div>
+
+        <!-- Tab 1: Ringkasan & Metodologi -->
+        @if (_currentTab == "overview")
+        {
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <!-- Abstrak -->
+                    <div class="pv-card" style="padding: 1.5rem;">
+                        <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-text); margin: 0 0 0.75rem 0;">
+                            Abstrak Penelitian
+                        </h3>
+                        <p style="font-size: 0.9375rem; color: var(--pv-color-text); line-height: 1.6; white-space: pre-wrap; margin: 0;">
+                            @(_project.Abstract ?? "Belum ada deskripsi abstrak untuk proyek riset ini.")
+                        </p>
+                    </div>
+
+                    <!-- Tujuan Riset -->
+                    <div class="pv-card" style="padding: 1.5rem;">
+                        <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-text); margin: 0 0 0.75rem 0;">
+                            Tujuan & Luaran Ilmiah (Research Objectives)
+                        </h3>
+                        <p style="font-size: 0.9375rem; color: var(--pv-color-text); line-height: 1.6; white-space: pre-wrap; margin: 0;">
+                            @(_project.ResearchObjectives ?? "Belum ditentukan target luaran spesifik.")
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Kolom Samping Info -->
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div class="pv-card" style="padding: 1.5rem;">
+                        <h4 style="font-size: 0.9375rem; font-weight: 600; color: var(--pv-color-text); margin: 0 0 1rem 0;">
+                            Metadata Ruang Kerja
+                        </h4>
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.875rem;">
+                            <div>
+                                <span style="color: var(--pv-color-text-muted); display: block;">Jalur Kolaborasi:</span>
+                                <strong>@_project.OriginType</strong>
+                            </div>
+                            <div>
+                                <span style="color: var(--pv-color-text-muted); display: block;">URL Slug:</span>
+                                <code>@_project.Slug</code>
+                            </div>
+                            <div>
+                                <span style="color: var(--pv-color-text-muted); display: block;">Tingkat Visibilitas:</span>
+                                <span>@_project.Visibility</span>
+                            </div>
+                            <div>
+                                <span style="color: var(--pv-color-text-muted); display: block;">Pembaruan Terakhir:</span>
+                                <span>@_project.UpdatedAtUtc.ToString("dd MMM yyyy, HH:mm") UTC</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Tab 2: Tim Peneliti & Kolaborator -->
+        @if (_currentTab == "members")
+        {
+            <div class="pv-card" style="padding: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                    <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-text); margin: 0;">
+                        Anggota Tim Riset
+                    </h3>
+                    <button class="pv-btn pv-btn-sm pv-btn-primary" @onclick="() => _showInviteModal = true">
+                        ➕ Undang Peneliti
+                    </button>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    @foreach (var member in _project.Members)
+                    {
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1rem; background: rgba(0,0,0,0.015); border: 1px solid var(--pv-color-border); border-radius: 8px; flex-wrap: wrap; gap: 0.75rem;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--pv-color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem;">
+                                    @(string.IsNullOrWhiteSpace(member.DisplayName) ? "P" : member.DisplayName[0].ToString().ToUpper())
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: var(--pv-color-text);">
+                                        @member.DisplayName
+                                    </div>
+                                    <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted);">
+                                        @(member.Headline ?? "Peneliti Terverifikasi")
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <span class="pv-badge @(member.Role == "ProjectLead" ? "pv-badge-primary" : "pv-badge-secondary")">
+                                    @member.Role
+                                </span>
+
+                                @if (member.Role != "ProjectLead")
+                                {
+                                    <button class="pv-btn pv-btn-xs pv-btn-ghost" @onclick="() => PromptTransferLeadership(member.UserId, member.DisplayName)" title="Alihkan Kepemimpinan Proyek">
+                                        Alihkan Pimpinan
+                                    </button>
+                                    <button class="pv-btn pv-btn-xs pv-btn-ghost" style="color: #dc2626;" @onclick="() => RemoveMemberAsync(member.UserId)">
+                                        Keluarkan
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Tab 3: Milestones & Target Capaian -->
+        @if (_currentTab == "milestones")
+        {
+            <div class="pv-card" style="padding: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                    <div>
+                        <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-text); margin: 0;">
+                            Tonggak Capaian Ilmiah (Milestones)
+                        </h3>
+                        <p style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin: 0.25rem 0 0 0;">
+                            Rencana target waktu penyelesaian tahapan riset dan pelaporan luaran.
+                        </p>
+                    </div>
+                    <button class="pv-btn pv-btn-sm pv-btn-primary" @onclick="() => _showMilestoneModal = true">
+                        ➕ Tambah Milestone
+                    </button>
+                </div>
+
+                @if (_project.Milestones.Count == 0)
+                {
+                    <div style="text-align: center; padding: 2rem 0; color: var(--pv-color-text-muted);">
+                        Belum ada target capaian. Buat milestone pertama untuk memantau kemajuan proyek.
+                    </div>
+                }
+                else
+                {
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        @foreach (var ms in _project.Milestones.OrderBy(m => m.TargetDateUtc))
+                        {
+                            <div style="padding: 1rem; border: 1px solid var(--pv-color-border); border-radius: 8px; background: var(--pv-color-surface);">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                                    <div>
+                                        <h4 style="font-size: 1rem; font-weight: 600; color: var(--pv-color-text); margin: 0 0 0.25rem 0;">
+                                            @ms.Title
+                                        </h4>
+                                        <span style="font-size: 0.8125rem; color: var(--pv-color-text-muted);">
+                                            📅 Target: @ms.TargetDateUtc.ToString("dd MMM yyyy")
+                                        </span>
+                                    </div>
+
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <span class="pv-badge @(ms.Status == "Achieved" ? "pv-badge-success" : "pv-badge-neutral")">
+                                            @ms.Status
+                                        </span>
+                                    </div>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(ms.Description))
+                                {
+                                    <p style="font-size: 0.875rem; color: var(--pv-color-text-subtle); margin: 0 0 0.75rem 0;">
+                                        @ms.Description
+                                    </p>
+                                }
+
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; color: var(--pv-color-text-muted); padding-top: 0.5rem; border-top: 1px solid var(--pv-color-border);">
+                                    <span>Tugas Selesai: @ms.CompletedTasksCount dari @ms.TotalTasksCount</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Tab 4: Manajemen Tugas Riset -->
+        @if (_currentTab == "tasks")
+        {
+            <div class="pv-card" style="padding: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-text); margin: 0;">
+                            Daftar Tugas & Pembagian Kerja
+                        </h3>
+                        <p style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin: 0.25rem 0 0 0;">
+                            Tugaskan eksperimen, penulisan manuskrip, atau analisis data kepada peneliti tim.
+                        </p>
+                    </div>
+                    <button class="pv-btn pv-btn-sm pv-btn-primary" @onclick="() => _showTaskModal = true">
+                        ➕ Buat Tugas Baru
+                    </button>
+                </div>
+
+                @if (_project.Tasks.Count == 0)
+                {
+                    <div style="text-align: center; padding: 2rem 0; color: var(--pv-color-text-muted);">
+                        Belum ada tugas riset yang didaftarkan.
+                    </div>
+                }
+                else
+                {
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
+                        @foreach (var task in _project.Tasks)
+                        {
+                            <div style="padding: 1rem; border: 1px solid var(--pv-color-border); border-radius: 8px; background: var(--pv-color-surface); display: flex; flex-direction: column; justify-content: space-between;">
+                                <div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                        <span class="pv-badge pv-badge-sm @(task.Priority == "Urgent" ? "pv-badge-danger" : task.Priority == "High" ? "pv-badge-warning" : "pv-badge-neutral")">
+                                            @task.Priority
+                                        </span>
+                                        <span class="pv-badge pv-badge-sm pv-badge-outline">
+                                            @task.Status
+                                        </span>
+                                    </div>
+
+                                    <h4 style="font-size: 0.9375rem; font-weight: 600; color: var(--pv-color-text); margin: 0 0 0.375rem 0;">
+                                        @task.Title
+                                    </h4>
+
+                                    @if (!string.IsNullOrWhiteSpace(task.Description))
+                                    {
+                                        <p style="font-size: 0.8125rem; color: var(--pv-color-text-subtle); margin: 0 0 0.75rem 0; line-height: 1.4;">
+                                            @task.Description
+                                        </p>
+                                    }
+                                </div>
+
+                                <div style="font-size: 0.75rem; color: var(--pv-color-text-muted); padding-top: 0.5rem; border-top: 1px solid var(--pv-color-border); display: flex; justify-content: space-between; align-items: center;">
+                                    <span>PJ: @(task.AssigneeDisplayName ?? "Belum ditugaskan")</span>
+                                    @if (task.DueDateUtc.HasValue)
+                                    {
+                                        <span>Tenggat: @task.DueDateUtc.Value.ToString("dd MMM")</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Tab 5: Riwayat Aktivitas & Audit -->
+        @if (_currentTab == "timeline")
+        {
+            <div class="pv-card" style="padding: 1.5rem;">
+                <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-text); margin: 0 0 1.25rem 0;">
+                    Riwayat Aktivitas & Audit Proyek
+                </h3>
+
+                @if (_timelineLogs == null || _timelineLogs.Count == 0)
+                {
+                    <div style="text-align: center; padding: 2rem 0; color: var(--pv-color-text-muted);">
+                        Belum ada rekaman log riwayat aktivitas.
+                    </div>
+                }
+                else
+                {
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        @foreach (var log in _timelineLogs)
+                        {
+                            <div style="display: flex; gap: 0.75rem; padding: 0.75rem; background: rgba(0,0,0,0.01); border-left: 3px solid var(--pv-color-primary); border-radius: 0 6px 6px 0;">
+                                <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted); min-width: 130px;">
+                                    @log.TimestampUtc.ToString("dd MMM yyyy, HH:mm")
+                                </div>
+                                <div style="flex-grow: 1; font-size: 0.875rem;">
+                                    <strong>@log.ActorDisplayName</strong>
+                                    <span style="color: var(--pv-color-text-muted); margin-left: 0.25rem;">[@log.Action]</span>
+                                    <div style="color: var(--pv-color-text); margin-top: 0.2rem;">
+                                        @log.Details
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+<!-- Modal: Majukan Tahapan (Advance Stage) -->
+@if (_showStageModal)
+{
+    <div class="pv-modal-backdrop" @onclick="() => _showStageModal = false">
+        <div class="pv-modal-dialog" @onclick:stopPropagation>
+            <h3 style="margin-top: 0; font-size: 1.25rem;">Majukan Tahapan Riset</h3>
+            <p style="font-size: 0.875rem; color: var(--pv-color-text-muted); margin-bottom: 1.25rem;">
+                Tahapan merefleksikan tingkat kematangan ilmiah dari konsep awal hingga siap publikasi/hilirisasi.
+            </p>
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.375rem;">Pilih Tahapan Baru</label>
+                <select class="pv-input" style="width: 100%;" @bind="_selectedNewStage">
+                    <option value="Concept">Concept (Pengembangan Ide Awal)</option>
+                    <option value="Proposal">Proposal (Penyusunan Proposal Hibah)</option>
+                    <option value="ActiveResearch">ActiveResearch (Pelaksanaan Eksperimen/Studi)</option>
+                    <option value="DataAnalysis">DataAnalysis (Analisis Data & Komputasi)</option>
+                    <option value="PublicationReview">PublicationReview (Drafting & Peer Review)</option>
+                    <option value="Completed">Completed (Selesai & Terpublikasi)</option>
+                </select>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button class="pv-btn pv-btn-ghost" @onclick="() => _showStageModal = false">Batal</button>
+                <button class="pv-btn pv-btn-primary" @onclick="AdvanceStageAsync">Konfirmasi Pembaruan</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal: Ubah Status Proyek -->
+@if (_showStatusModal)
+{
+    <div class="pv-modal-backdrop" @onclick="() => _showStatusModal = false">
+        <div class="pv-modal-dialog" @onclick:stopPropagation>
+            <h3 style="margin-top: 0; font-size: 1.25rem;">Ubah Status Proyek</h3>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.375rem;">Status</label>
+                <select class="pv-input" style="width: 100%;" @bind="_selectedNewStatus">
+                    <option value="Planning">Planning</option>
+                    <option value="Active">Active</option>
+                    <option value="OnHold">OnHold</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Archived">Archived</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.375rem;">Alasan Perubahan</label>
+                <input type="text" class="pv-input" style="width: 100%;" placeholder="Contoh: Menunggu persetujuan etika riset..." @bind="_statusChangeReason" />
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button class="pv-btn pv-btn-ghost" @onclick="() => _showStatusModal = false">Batal</button>
+                <button class="pv-btn pv-btn-primary" @onclick="UpdateStatusAsync">Simpan Status</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal: Undang Peneliti (Invite Member) -->
+@if (_showInviteModal)
+{
+    <div class="pv-modal-backdrop" @onclick="() => _showInviteModal = false">
+        <div class="pv-modal-dialog" @onclick:stopPropagation>
+            <h3 style="margin-top: 0; font-size: 1.25rem;">Undang Kolaborator Riset</h3>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.375rem;">ID Peneliti (User ID)</label>
+                <input type="text" class="pv-input" style="width: 100%;" placeholder="Masukkan User ID (Guid)" @bind="_inviteUserId" />
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.375rem;">Peran Kolaborasi</label>
+                <select class="pv-input" style="width: 100%;" @bind="_inviteRole">
+                    <option value="Researcher">Researcher (Peneliti)</option>
+                    <option value="CoResearcher">CoResearcher (Rekan Peneliti Utama)</option>
+                    <option value="ResearchAssistant">ResearchAssistant (Asisten Peneliti)</option>
+                    <option value="InstitutionalCoordinator">InstitutionalCoordinator (Koordinator Institusi)</option>
+                    <option value="IndustryPartner">IndustryPartner (Mitra Industri)</option>
+                    <option value="Observer">Observer (Pengamat Riset)</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.375rem;">Pesan Undangan</label>
+                <textarea class="pv-input" rows="2" style="width: 100%;" placeholder="Ajak rekan berkolaborasi pada proyek ini..." @bind="_inviteMessage"></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button class="pv-btn pv-btn-ghost" @onclick="() => _showInviteModal = false">Batal</button>
+                <button class="pv-btn pv-btn-primary" @onclick="InviteMemberAsync">Kirim Undangan</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal: Tambah Milestone -->
+@if (_showMilestoneModal)
+{
+    <div class="pv-modal-backdrop" @onclick="() => _showMilestoneModal = false">
+        <div class="pv-modal-dialog" @onclick:stopPropagation>
+            <h3 style="margin-top: 0; font-size: 1.25rem;">Tambah Tonggak Capaian (Milestone)</h3>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.375rem;">Judul Capaian</label>
+                <input type="text" class="pv-input" style="width: 100%;" placeholder="Contoh: Milestone 1: Desain Eksperimental Terverifikasi" @bind="_newMilestoneTitle" />
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.375rem;">Target Tanggal Selesai</label>
+                <input type="date" class="pv-input" style="width: 100%;" @bind="_newMilestoneDate" />
+            </div>
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.375rem;">Deskripsi Target</label>
+                <textarea class="pv-input" rows="2" style="width: 100%;" placeholder="Detail luaran yang diharapkan..." @bind="_newMilestoneDesc"></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button class="pv-btn pv-btn-ghost" @onclick="() => _showMilestoneModal = false">Batal</button>
+                <button class="pv-btn pv-btn-primary" @onclick="CreateMilestoneAsync">Tambah Milestone</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal: Tambah Tugas Baru -->
+@if (_showTaskModal)
+{
+    <div class="pv-modal-backdrop" @onclick="() => _showTaskModal = false">
+        <div class="pv-modal-dialog" @onclick:stopPropagation>
+            <h3 style="margin-top: 0; font-size: 1.25rem;">Buat Tugas Riset Baru</h3>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.375rem;">Judul Tugas</label>
+                <input type="text" class="pv-input" style="width: 100%;" placeholder="Contoh: Analisis Statistik Anova Data Kelompok Uji" @bind="_newTaskTitle" />
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.375rem;">Prioritas</label>
+                <select class="pv-input" style="width: 100%;" @bind="_newTaskPriority">
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Urgent">Urgent</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.375rem;">Deskripsi Singkat</label>
+                <textarea class="pv-input" rows="2" style="width: 100%;" placeholder="Instruksi spesifik pengerjaan..." @bind="_newTaskDesc"></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button class="pv-btn pv-btn-ghost" @onclick="() => _showTaskModal = false">Batal</button>
+                <button class="pv-btn pv-btn-primary" @onclick="CreateTaskAsync">Simpan Tugas</button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .pv-stage-tracker {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        overflow-x: auto;
+        padding: 0.5rem 0;
+    }
+    .pv-stage-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        flex: 1;
+        position: relative;
+    }
+    .pv-stage-step:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 14px;
+        left: 50%;
+        width: 100%;
+        height: 2px;
+        background: var(--pv-color-border);
+        z-index: 1;
+    }
+    .pv-stage-step.is-completed:not(:last-child)::after {
+        background: var(--pv-color-primary);
+    }
+    .pv-stage-dot {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--pv-color-surface);
+        border: 2px solid var(--pv-color-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--pv-color-text-muted);
+        position: relative;
+        z-index: 2;
+    }
+    .pv-stage-step.is-completed .pv-stage-dot {
+        background: var(--pv-color-primary);
+        border-color: var(--pv-color-primary);
+        color: white;
+    }
+    .pv-stage-step.is-current .pv-stage-dot {
+        border-color: var(--pv-color-primary);
+        color: var(--pv-color-primary);
+        box-shadow: 0 0 0 3px rgba(23, 54, 93, 0.2);
+    }
+    .pv-stage-name {
+        margin-top: 0.375rem;
+        font-size: 0.75rem;
+        color: var(--pv-color-text-muted);
+        font-weight: 500;
+    }
+    .pv-stage-step.is-current .pv-stage-name {
+        font-weight: 700;
+        color: var(--pv-color-primary);
+    }
+    .pv-modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+    .pv-modal-dialog {
+        background: var(--pv-color-surface);
+        border-radius: 12px;
+        padding: 1.75rem;
+        width: 100%;
+        max-width: 480px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+</style>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private ProjectDetailDto? _project;
+    private IReadOnlyList<ProjectActivityLogDto>? _timelineLogs;
+    private bool _isLoading = true;
+    private string _currentTab = "overview";
+
+    // Modals
+    private bool _showStageModal = false;
+    private string _selectedNewStage = "Proposal";
+
+    private bool _showStatusModal = false;
+    private string _selectedNewStatus = "Active";
+    private string _statusChangeReason = "";
+
+    private bool _showInviteModal = false;
+    private string _inviteUserId = "";
+    private string _inviteRole = "Researcher";
+    private string _inviteMessage = "";
+
+    private bool _showMilestoneModal = false;
+    private string _newMilestoneTitle = "";
+    private DateTime _newMilestoneDate = DateTime.Today.AddMonths(1);
+    private string _newMilestoneDesc = "";
+
+    private bool _showTaskModal = false;
+    private string _newTaskTitle = "";
+    private string _newTaskPriority = "Medium";
+    private string _newTaskDesc = "";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadProjectAsync();
+    }
+
+    private async Task LoadProjectAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _project = await ProjectClient.GetProjectByIdAsync(Id);
+            if (_project != null)
+            {
+                _selectedNewStage = _project.Stage;
+                _selectedNewStatus = _project.Status;
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal memuat ruang kerja riset: " + ex.Message);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadTimelineAsync()
+    {
+        _currentTab = "timeline";
+        if (_timelineLogs == null)
+        {
+            try
+            {
+                _timelineLogs = await ProjectClient.GetActivityTimelineAsync(Id);
+            }
+            catch (Exception ex)
+            {
+                ToastService.ShowError("Gagal memuat riwayat: " + ex.Message);
+            }
+        }
+    }
+
+    private async Task AdvanceStageAsync()
+    {
+        try
+        {
+            var updated = await ProjectClient.AdvanceStageAsync(Id, new AdvanceProjectStageRequest(_selectedNewStage));
+            if (updated != null)
+            {
+                _project = updated;
+                _showStageModal = false;
+                ToastService.ShowSuccess("Tahapan riset berhasil dimajukan!");
+                _timelineLogs = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal memajukan tahapan: " + ex.Message);
+        }
+    }
+
+    private async Task UpdateStatusAsync()
+    {
+        try
+        {
+            var updated = await ProjectClient.UpdateStatusAsync(Id, new UpdateProjectStatusRequest(_selectedNewStatus, _statusChangeReason));
+            if (updated != null)
+            {
+                _project = updated;
+                _showStatusModal = false;
+                ToastService.ShowSuccess("Status proyek berhasil diperbarui!");
+                _timelineLogs = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal memperbarui status: " + ex.Message);
+        }
+    }
+
+    private async Task InviteMemberAsync()
+    {
+        if (!Guid.TryParse(_inviteUserId, out var targetGuid))
+        {
+            ToastService.ShowError("User ID tidak valid. Harap gunakan GUID yang sah.");
+            return;
+        }
+
+        try
+        {
+            var inv = await ProjectClient.InviteMemberAsync(Id, new InviteMemberRequest(targetGuid, _inviteRole, _inviteMessage));
+            if (inv != null)
+            {
+                ToastService.ShowSuccess("Undangan kolaborasi berhasil dikirim!");
+                _showInviteModal = false;
+                _inviteUserId = "";
+                _inviteMessage = "";
+                await LoadProjectAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal mengundang anggota: " + ex.Message);
+        }
+    }
+
+    private async Task RemoveMemberAsync(Guid targetUserId)
+    {
+        try
+        {
+            var success = await ProjectClient.RemoveMemberAsync(Id, targetUserId);
+            if (success)
+            {
+                ToastService.ShowSuccess("Anggota tim berhasil dikeluarkan.");
+                await LoadProjectAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal mengeluarkan anggota: " + ex.Message);
+        }
+    }
+
+    private async Task PromptTransferLeadership(Guid targetUserId, string targetName)
+    {
+        try
+        {
+            var success = await ProjectClient.TransferLeadershipAsync(Id, new TransferLeadershipRequest(targetUserId));
+            if (success)
+            {
+                ToastService.ShowSuccess($"Kepemimpinan proyek berhasil dialihkan kepada {targetName}.");
+                await LoadProjectAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal mengalihkan kepemimpinan: " + ex.Message);
+        }
+    }
+
+    private async Task CreateMilestoneAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newMilestoneTitle))
+        {
+            ToastService.ShowError("Judul milestone wajib diisi.");
+            return;
+        }
+
+        try
+        {
+            var ms = await ProjectClient.CreateMilestoneAsync(Id, new CreateMilestoneRequest(_newMilestoneTitle.Trim(), _newMilestoneDate, _newMilestoneDesc.Trim()));
+            if (ms != null)
+            {
+                ToastService.ShowSuccess("Milestone berhasil ditambahkan!");
+                _showMilestoneModal = false;
+                _newMilestoneTitle = "";
+                _newMilestoneDesc = "";
+                await LoadProjectAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal membuat milestone: " + ex.Message);
+        }
+    }
+
+    private async Task CreateTaskAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newTaskTitle))
+        {
+            ToastService.ShowError("Judul tugas riset wajib diisi.");
+            return;
+        }
+
+        try
+        {
+            var task = await ProjectClient.CreateTaskAsync(Id, new CreateTaskRequest(_newTaskTitle.Trim(), _newTaskDesc.Trim(), null, _newTaskPriority, null, null));
+            if (task != null)
+            {
+                ToastService.ShowSuccess("Tugas riset berhasil dibuat!");
+                _showTaskModal = false;
+                _newTaskTitle = "";
+                _newTaskDesc = "";
+                await LoadProjectAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal membuat tugas: " + ex.Message);
+        }
+    }
+}

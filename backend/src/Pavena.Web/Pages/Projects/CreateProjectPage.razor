@@ -1,0 +1,276 @@
+@page "/projects/create"
+@rendermode InteractiveServer
+
+@using System.Text.RegularExpressions
+@using Pavena.Application.Research.DTOs
+@using Pavena.Web.Components.Common
+@using Pavena.Web.Services.Projects
+@using Pavena.Web.Services.Toast
+
+@inject IProjectClient ProjectClient
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Inisiasi Proyek Riset Baru — Pavena</PageTitle>
+
+<div class="pv-container" style="max-width: 800px; padding: 2rem 1rem;">
+    <!-- Breadcrumb / Back -->
+    <div style="margin-bottom: 1.5rem;">
+        <a href="projects" style="color: var(--pv-color-text-muted); text-decoration: none; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.375rem;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Kembali ke Daftar Proyek
+        </a>
+    </div>
+
+    <!-- Header -->
+    <div style="margin-bottom: 2rem;">
+        <h1 style="font-size: 1.75rem; font-weight: 700; color: var(--pv-color-text); margin: 0 0 0.5rem 0;">
+            Inisiasi Ruang Kerja Riset
+        </h1>
+        <p style="color: var(--pv-color-text-muted); font-size: 0.9375rem; margin: 0;">
+            Daftarkan inisiatif penelitian baru (Jalur HULU) untuk mengkoordinasikan metodologi, data, repositori, dan tim peneliti.
+        </p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="pv-card" style="padding: 2rem; border-radius: 12px;">
+        <form @onsubmit="HandleSubmit" @onsubmit:preventDefault>
+            <!-- Judul Proyek -->
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.9375rem; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                    Judul Proyek Riset <span style="color: #dc2626;">*</span>
+                </label>
+                <input type="text" 
+                       class="pv-input" 
+                       placeholder="Contoh: Pengembangan Agen Cerdas untuk Sintesis Molekuler Presisi" 
+                       @bind="_title" 
+                       @bind:event="oninput" 
+                       @onkeyup="HandleTitleChanged"
+                       required 
+                       style="width: 100%; font-size: 1rem; padding: 0.625rem 0.875rem;" />
+                <span style="font-size: 0.75rem; color: var(--pv-color-text-muted);">
+                    Judul resmi proyek atau hibah penelitian yang akan ditampilkan di profil dan publikasi.
+                </span>
+            </div>
+
+            <!-- Slug Identifier -->
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.9375rem; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                    Slug Identifikasi URL <span style="color: #dc2626;">*</span>
+                </label>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="color: var(--pv-color-text-muted); font-size: 0.875rem;">pavena.org/projects/slug/</span>
+                    <input type="text" 
+                           class="pv-input" 
+                           placeholder="pengembangan-agen-cerdas-sintesis" 
+                           @bind="_slug" 
+                           required 
+                           style="flex-grow: 1; font-family: monospace; font-size: 0.875rem; padding: 0.5rem 0.75rem;" />
+                </div>
+            </div>
+
+            <!-- Bidang Keilmuan / Research Field -->
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.9375rem; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                    Bidang Keilmuan (Research Field)
+                </label>
+                <input type="text" 
+                       class="pv-input" 
+                       placeholder="Contoh: Computer Science, Biomedical Informatics, Renewable Energy" 
+                       @bind="_researchField" 
+                       list="field-suggestions"
+                       style="width: 100%; padding: 0.5rem 0.75rem;" />
+                <datalist id="field-suggestions">
+                    <option value="Artificial Intelligence & Machine Learning" />
+                    <option value="Biomedical Informatics & Genomics" />
+                    <option value="Renewable Energy & Materials Science" />
+                    <option value="Economics & Sustainable Finance" />
+                    <option value="Public Health & Epidemiology" />
+                    <option value="Applied Physics & Quantum Engineering" />
+                    <option value="Sociology & Public Policy" />
+                </datalist>
+            </div>
+
+            <!-- Deskripsi & Abstrak -->
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.9375rem; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                    Abstrak / Deskripsi Singkat Riset
+                </label>
+                <textarea class="pv-input" 
+                          rows="4" 
+                          placeholder="Jelaskan latar belakang permasalahan, kebaruan (novelty), metodologi yang diusulkan, dan kontribusi ilmiah..." 
+                          @bind="_description" 
+                          style="width: 100%; padding: 0.625rem 0.875rem; font-family: inherit; font-size: 0.875rem; resize: vertical;"></textarea>
+            </div>
+
+            <!-- Tujuan Riset / Objectives -->
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.9375rem; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                    Tujuan & Target Luaran (Research Objectives)
+                </label>
+                <textarea class="pv-input" 
+                          rows="3" 
+                          placeholder="Contoh: 1. Prototipe model divalidasi dengan akurasi 90%. 2. Publikasi pada jurnal bereputasi Q1." 
+                          @bind="_researchObjectives" 
+                          style="width: 100%; padding: 0.625rem 0.875rem; font-family: inherit; font-size: 0.875rem; resize: vertical;"></textarea>
+            </div>
+
+            <!-- Visibilitas Proyek -->
+            <div style="margin-bottom: 2rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.9375rem; color: var(--pv-color-text); margin-bottom: 0.5rem;">
+                    Akses & Visibilitas
+                </label>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
+                    <label class="pv-visibility-option @(_visibility == "Private" ? "selected" : "")">
+                        <input type="radio" name="visibility" value="Private" checked="@(_visibility == "Private")" @onchange="@(() => _visibility = "Private")" />
+                        <div>
+                            <strong>Private (Pribadi)</strong>
+                            <p>Hanya Anda yang dapat melihat dan mengakses ruang kerja ini.</p>
+                        </div>
+                    </label>
+
+                    <label class="pv-visibility-option @(_visibility == "WorkspaceMembers" ? "selected" : "")">
+                        <input type="radio" name="visibility" value="WorkspaceMembers" checked="@(_visibility == "WorkspaceMembers")" @onchange="@(() => _visibility = "WorkspaceMembers")" />
+                        <div>
+                            <strong>Anggota Terpilih</strong>
+                            <p>Dapat diakses oleh anggota tim yang diundang secara eksplisit.</p>
+                        </div>
+                    </label>
+
+                    <label class="pv-visibility-option @(_visibility == "PublicDiscovery" ? "selected" : "")">
+                        <input type="radio" name="visibility" value="PublicDiscovery" checked="@(_visibility == "PublicDiscovery")" @onchange="@(() => _visibility = "PublicDiscovery")" />
+                        <div>
+                            <strong>Eksplorasi Publik</strong>
+                            <p>Muncul di halaman pencarian Pavena untuk kolaborasi terbuka.</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--pv-color-border); padding-top: 1.5rem;">
+                <a href="projects" class="pv-btn pv-btn-ghost">
+                    Batal
+                </a>
+                <button type="submit" class="pv-btn pv-btn-primary" disabled="@_isSubmitting" style="min-width: 140px;">
+                    @if (_isSubmitting)
+                    {
+                        <span class="pv-spinner pv-spinner-sm" style="margin-right: 0.5rem;"></span>
+                        <span>Menyimpan...</span>
+                    }
+                    else
+                    {
+                        <span>Buat Proyek Riset</span>
+                    }
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .pv-visibility-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.625rem;
+        padding: 0.875rem;
+        border: 1px solid var(--pv-color-border);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .pv-visibility-option.selected {
+        border-color: var(--pv-color-primary);
+        background: rgba(23, 54, 93, 0.04);
+    }
+    .pv-visibility-option strong {
+        display: block;
+        font-size: 0.875rem;
+        color: var(--pv-color-text);
+        margin-bottom: 0.2rem;
+    }
+    .pv-visibility-option p {
+        font-size: 0.75rem;
+        color: var(--pv-color-text-muted);
+        margin: 0;
+        line-height: 1.4;
+    }
+</style>
+
+@code {
+    private string _title = "";
+    private string _slug = "";
+    private string _researchField = "";
+    private string _description = "";
+    private string _researchObjectives = "";
+    private string _visibility = "Private";
+    private bool _isSubmitting = false;
+
+    private void HandleTitleChanged(KeyboardEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_slug) || _slug == GenerateSlug(_title.Substring(0, Math.Max(0, _title.Length - 1))))
+        {
+            _slug = GenerateSlug(_title);
+        }
+    }
+
+    private string GenerateSlug(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return "";
+        var slug = text.ToLowerInvariant().Trim();
+        slug = Regex.Replace(slug, @"[^a-z0-9\s-]", "");
+        slug = Regex.Replace(slug, @"\s+", "-").Trim('-');
+        if (slug.Length > 80) slug = slug.Substring(0, 80).Trim('-');
+        return slug;
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(_title))
+        {
+            ToastService.ShowError("Judul proyek riset wajib diisi.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_slug))
+        {
+            _slug = GenerateSlug(_title);
+        }
+
+        _isSubmitting = true;
+        try
+        {
+            var request = new CreateProjectRequest(
+                _title.Trim(),
+                _slug.Trim(),
+                string.IsNullOrWhiteSpace(_description) ? null : _description.Trim(),
+                string.IsNullOrWhiteSpace(_researchField) ? null : _researchField.Trim(),
+                string.IsNullOrWhiteSpace(_researchObjectives) ? null : _researchObjectives.Trim(),
+                _visibility,
+                null
+            );
+
+            var created = await ProjectClient.CreateProjectAsync(request);
+            if (created != null)
+            {
+                ToastService.ShowSuccess("Ruang kerja riset berhasil diinisiasi!");
+                NavigationManager.NavigateTo($"projects/{created.Id}");
+            }
+            else
+            {
+                ToastService.ShowError("Gagal membuat proyek riset. Silakan periksa kelengkapan form.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Terjadi kesalahan: " + ex.Message);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

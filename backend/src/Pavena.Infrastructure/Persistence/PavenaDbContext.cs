@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Pavena.Application.Common.Interfaces;
+using Pavena.Domain.Common;
 using Pavena.Domain.Entities.Documents;
 using Pavena.Domain.Entities.Identity;
 using Pavena.Domain.Entities.Organizations;
@@ -35,12 +37,46 @@ public class PavenaDbContext : IdentityDbContext<User, PlatformRole, Guid>, IPav
     public DbSet<ResearchProject> ResearchProjects => Set<ResearchProject>();
     public DbSet<ResearchMember> ResearchMembers => Set<ResearchMember>();
     public DbSet<ResearchTask> ResearchTasks => Set<ResearchTask>();
+    public DbSet<ResearchMilestone> ResearchMilestones => Set<ResearchMilestone>();
+    public DbSet<ProjectInvitation> ProjectInvitations => Set<ProjectInvitation>();
+    public DbSet<ProjectActivityLog> ProjectActivityLogs => Set<ProjectActivityLog>();
 
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<DocumentCollaborator> DocumentCollaborators => Set<DocumentCollaborator>();
 
     public PavenaDbContext(DbContextOptions<PavenaDbContext> options) : base(options)
     {
+        ChangeTracker.Tracked += OnEntityTracked;
+        ChangeTracker.StateChanged += OnEntityStateChanged;
+    }
+
+    private void OnEntityTracked(object? sender, EntityTrackedEventArgs e)
+    {
+        if (!e.FromQuery && e.Entry.State == EntityState.Modified && e.Entry.Entity is BaseEntity)
+        {
+            e.Entry.State = EntityState.Added;
+        }
+    }
+
+    private void OnEntityStateChanged(object? sender, EntityStateChangedEventArgs e)
+    {
+        if (e.OldState == EntityState.Detached && e.NewState == EntityState.Modified && e.Entry.Entity is BaseEntity)
+        {
+            e.Entry.State = EntityState.Added;
+        }
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+        {
+            if (entry.State == EntityState.Modified && entry.Entity is ProjectActivityLog)
+            {
+                entry.State = EntityState.Added;
+            }
+        }
+
+        return base.SaveChangesAsync(cancellationToken);
     }
 
     protected override void OnModelCreating(ModelBuilder builder)

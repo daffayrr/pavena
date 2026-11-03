@@ -33,6 +33,9 @@ public interface IPavenaDbContext
     DbSet<ResearchProject> ResearchProjects { get; }
     DbSet<ResearchMember> ResearchMembers { get; }
     DbSet<ResearchTask> ResearchTasks { get; }
+    DbSet<ResearchMilestone> ResearchMilestones { get; }
+    DbSet<ProjectInvitation> ProjectInvitations { get; }
+    DbSet<ProjectActivityLog> ProjectActivityLogs { get; }
 
     DbSet<Document> Documents { get; }
     DbSet<DocumentCollaborator> DocumentCollaborators { get; }

@@ -30,8 +30,17 @@ public class DatabaseConstraintIntegrationTests
     {
         using var db = CreateMySqlTestDbContext();
 
-        var u1 = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-        var u2 = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        var user1 = new User("user1_" + Guid.NewGuid().ToString("N")[..6] + "@pavena.org", "u1_" + Guid.NewGuid().ToString("N")[..6]) { PasswordHash = "hash1" };
+        var user2 = new User("user2_" + Guid.NewGuid().ToString("N")[..6] + "@pavena.org", "u2_" + Guid.NewGuid().ToString("N")[..6]) { PasswordHash = "hash2" };
+        db.Users.AddRange(user1, user2);
+        await db.SaveChangesAsync();
+
+        var u1 = user1.Id;
+        var u2 = user2.Id;
+        if (u1.CompareTo(u2) > 0)
+        {
+            (u1, u2) = (u2, u1);
+        }
 
         // Attempt to violate constraint: canonical_user_a >= canonical_user_b
         var invalidConnection = new Connection
@@ -59,16 +68,19 @@ public class DatabaseConstraintIntegrationTests
     {
         using var db = CreateMySqlTestDbContext();
 
-        var u1 = Guid.NewGuid();
-        var o1 = Guid.NewGuid();
+        var user = new User("user_" + Guid.NewGuid().ToString("N")[..6] + "@pavena.org", "u_" + Guid.NewGuid().ToString("N")[..6]) { PasswordHash = "hash" };
+        var org = new Organization("Test Org " + Guid.NewGuid().ToString("N")[..6], "test-org-" + Guid.NewGuid().ToString("N")[..6], OrganizationType.University);
+        db.Users.Add(user);
+        db.Organizations.Add(org);
+        await db.SaveChangesAsync();
 
         // Attempt to violate constraint: both owners non-null
         var invalidProject = new ResearchProject
         {
             Title = "Dual Owned Test Project",
             Slug = "dual-owned-" + Guid.NewGuid().ToString("N")[..8],
-            OwnerUserId = u1,
-            OwnerOrganizationId = o1,
+            OwnerUserId = user.Id,
+            OwnerOrganizationId = org.Id,
             Status = ProjectStatus.Active,
             Visibility = ProjectVisibility.Private
         };

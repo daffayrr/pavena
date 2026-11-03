@@ -1,0 +1,396 @@
+@page "/projects"
+@page "/research"
+@rendermode InteractiveServer
+
+@using Pavena.Application.Research.DTOs
+@using Pavena.Web.Components.Common
+@using Pavena.Web.Services.Projects
+@using Pavena.Web.Services.Toast
+
+@inject IProjectClient ProjectClient
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Ruang Kerja Riset & Proyek Ilmiah — Pavena</PageTitle>
+
+<div class="pv-container" style="max-width: 1100px; padding: 2rem 1rem;">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(23, 54, 93, 0.1); color: var(--pv-color-primary);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                    </svg>
+                </span>
+                <h1 style="font-size: 1.75rem; font-weight: 700; color: var(--pv-color-text); margin: 0;">Ruang Kerja Riset</h1>
+            </div>
+            <p style="color: var(--pv-color-text-muted); font-size: 0.9375rem; margin: 0;">
+                Kelola proyek kolaboratif, tonggak capaian ilmiah, pembagian tugas peneliti, dan kemitraan industri.
+            </p>
+        </div>
+
+        <button class="pv-btn pv-btn-primary" @onclick="NavigateToCreateProject" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Inisiasi Proyek Baru
+        </button>
+    </div>
+
+    <!-- Undangan Bergabung Proyek (Pending Invitations Alert) -->
+    @if (_myInvitations != null && _myInvitations.Count > 0)
+    {
+        <div class="pv-card" style="margin-bottom: 2rem; border-left: 4px solid var(--pv-color-secondary); background: rgba(24, 124, 120, 0.05); padding: 1.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--pv-color-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <h3 style="font-size: 1.0625rem; font-weight: 600; color: var(--pv-color-text); margin: 0;">
+                    Undangan Kolaborasi Riset (@_myInvitations.Count)
+                </h3>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                @foreach (var inv in _myInvitations)
+                {
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--pv-color-surface); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--pv-color-border); flex-wrap: wrap; gap: 0.5rem;">
+                        <div>
+                            <span style="font-weight: 600; color: var(--pv-color-text);">@inv.ProjectTitle</span>
+                            <span style="color: var(--pv-color-text-muted); font-size: 0.875rem; margin-left: 0.5rem;">
+                                Diundang oleh <strong>@inv.InvitedByDisplayName</strong> sebagai <span class="pv-badge pv-badge-secondary">@inv.RoleOffered</span>
+                            </span>
+                            @if (!string.IsNullOrWhiteSpace(inv.Message))
+                            {
+                                <p style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin: 0.25rem 0 0 0; font-style: italic;">
+                                    "@inv.Message"
+                                </p>
+                            }
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="pv-btn pv-btn-sm pv-btn-primary" @onclick="() => RespondInvitation(inv.Id, true)" disabled="@_isResponding">
+                                Terima Kolaborasi
+                            </button>
+                            <button class="pv-btn pv-btn-sm pv-btn-ghost" @onclick="() => RespondInvitation(inv.Id, false)" disabled="@_isResponding">
+                                Tolak
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Tab Navigasi & Pencarian -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--pv-color-border); margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; gap: 1rem;">
+            <button class="pv-tab-btn @(_activeTab == "my" ? "active" : "")" @onclick="@(() => SwitchTab("my"))">
+                Proyek Saya (@(_userProjects?.Count ?? 0))
+            </button>
+            <button class="pv-tab-btn @(_activeTab == "discover" ? "active" : "")" @onclick="@(() => SwitchTab("discover"))">
+                Eksplorasi Publik
+            </button>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; padding-bottom: 0.5rem;">
+            <input type="text" 
+                   class="pv-input" 
+                   placeholder="Cari judul, kata kunci..." 
+                   @bind="_searchQuery" 
+                   @bind:event="oninput" 
+                   @onkeyup="HandleSearchKeyUp"
+                   style="width: 240px; padding: 0.4rem 0.75rem; font-size: 0.875rem;" />
+            <button class="pv-btn pv-btn-ghost pv-btn-sm" @onclick="PerformSearch">
+                Cari
+            </button>
+        </div>
+    </div>
+
+    <!-- Content List -->
+    @if (_isLoading)
+    {
+        <div style="text-align: center; padding: 3rem 0; color: var(--pv-color-text-muted);">
+            <div class="pv-spinner" style="margin-bottom: 1rem;"></div>
+            <p>Memuat direktori proyek riset...</p>
+        </div>
+    }
+    else
+    {
+        var currentList = _activeTab == "my" ? _userProjects : _discoverProjects;
+
+        @if (currentList == null || currentList.Count == 0)
+        {
+            <div class="pv-card" style="text-align: center; padding: 3.5rem 1.5rem;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--pv-color-text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem;">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+                <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.5rem;">
+                    @(_activeTab == "my" ? "Belum ada proyek riset aktif" : "Tidak ada proyek publik yang sesuai")
+                </h3>
+                <p style="color: var(--pv-color-text-muted); font-size: 0.875rem; max-width: 440px; margin: 0 auto 1.5rem auto;">
+                    @(_activeTab == "my" 
+                        ? "Mulai inisiasi ruang kerja riset untuk mengorganisir metodologi, tonggak capaian, dan mengundang tim peneliti lintas institusi."
+                        : "Coba ubah kata kunci pencarian atau eksplorasi topik keilmuan lainnya.")
+                </p>
+                @if (_activeTab == "my")
+                {
+                    <button class="pv-btn pv-btn-primary" @onclick="NavigateToCreateProject">
+                        Inisiasi Proyek Riset Sekarang
+                    </button>
+                }
+            </div>
+        }
+        else
+        {
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem;">
+                @foreach (var proj in currentList)
+                {
+                    <div class="pv-card pv-project-card" style="display: flex; flex-direction: column; height: 100%; border-radius: 12px; transition: transform 0.15s ease, box-shadow 0.15s ease;">
+                        <div style="padding: 1.25rem; flex-grow: 1;">
+                            <!-- Badges -->
+                            <div style="display: flex; gap: 0.375rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                                @if (proj.OriginType == "ResearcherInitiated")
+                                {
+                                    <span class="pv-badge pv-badge-primary" title="Inisiatif Peneliti / Jalur HULU">HULU Riset</span>
+                                }
+                                else if (proj.OriginType == "IndustryChallengeProposal")
+                                {
+                                    <span class="pv-badge pv-badge-secondary" title="Kemitraan Industri / Jalur HILIR">HILIR Industri</span>
+                                }
+                                else
+                                {
+                                    <span class="pv-badge pv-badge-neutral">@proj.OriginType</span>
+                                }
+
+                                <span class="pv-stage-badge pv-stage-@proj.Stage.ToLowerInvariant()">
+                                    @proj.Stage
+                                </span>
+
+                                <span class="pv-badge pv-badge-outline">
+                                    @proj.Visibility
+                                </span>
+                            </div>
+
+                            <!-- Title -->
+                            <h2 style="font-size: 1.0625rem; font-weight: 700; color: var(--pv-color-text); line-height: 1.4; margin: 0 0 0.5rem 0;">
+                                <a href="projects/@proj.Id" style="color: inherit; text-decoration: none;" class="pv-project-title-link">
+                                    @proj.Title
+                                </a>
+                            </h2>
+
+                            <!-- Research Field & Owner -->
+                            <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.375rem; flex-wrap: wrap;">
+                                @if (!string.IsNullOrWhiteSpace(proj.ResearchField))
+                                {
+                                    <span>🔬 @proj.ResearchField</span>
+                                    <span>•</span>
+                                }
+                                <span>Pimpinan: @(proj.OwnerDisplayName ?? proj.OwnerOrganizationName ?? "Peneliti")</span>
+                            </div>
+
+                            <!-- Abstract preview -->
+                            <p style="font-size: 0.875rem; color: var(--pv-color-text-subtle); line-height: 1.5; margin: 0 0 1rem 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                @(proj.Abstract ?? "Belum ada deskripsi abstrak untuk proyek riset ini.")
+                            </p>
+                        </div>
+
+                        <!-- Footer stats & button -->
+                        <div style="padding: 0.875rem 1.25rem; border-top: 1px solid var(--pv-color-border); background: rgba(0,0,0,0.015); display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; color: var(--pv-color-text-muted);">
+                            <div style="display: flex; gap: 0.875rem;">
+                                <span title="Anggota Tim">👥 @proj.MemberCount</span>
+                                <span title="Tugas Aktif">📋 @proj.TaskCount</span>
+                                <span title="Target Capaian">🎯 @proj.MilestoneCount</span>
+                            </div>
+
+                            <a href="projects/@proj.Id" class="pv-btn pv-btn-sm pv-btn-ghost" style="font-weight: 600;">
+                                Buka Ruang Kerja →
+                            </a>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .pv-tab-btn {
+        background: none;
+        border: none;
+        padding: 0.625rem 0.25rem;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--pv-color-text-muted);
+        cursor: pointer;
+        position: relative;
+        transition: color 0.15s ease;
+    }
+    .pv-tab-btn.active {
+        color: var(--pv-color-primary);
+    }
+    .pv-tab-btn.active::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--pv-color-primary);
+        border-radius: 2px 2px 0 0;
+    }
+    .pv-project-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .pv-project-title-link:hover {
+        color: var(--pv-color-primary) !important;
+        text-decoration: underline !important;
+    }
+    .pv-stage-badge {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+    .pv-stage-concept { background: #E0E7FF; color: #3730A3; }
+    .pv-stage-proposal { background: #FEF3C7; color: #92400E; }
+    .pv-stage-activeresearch { background: #D1FAE5; color: #065F46; }
+    .pv-stage-dataanalysis { background: #CFFAFE; color: #155E75; }
+    .pv-stage-publicationreview { background: #EDE9FE; color: #5B21B6; }
+    .pv-stage-completed { background: #DCFCE7; color: #166534; }
+</style>
+
+@code {
+    private string _activeTab = "my";
+    private string _searchQuery = "";
+    private bool _isLoading = true;
+    private bool _isResponding = false;
+
+    private IReadOnlyList<ProjectSummaryDto>? _userProjects;
+    private IReadOnlyList<ProjectSummaryDto>? _discoverProjects;
+    private IReadOnlyList<ProjectInvitationDto>? _myInvitations;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var userProjectsTask = ProjectClient.GetUserProjectsAsync();
+            var invitationsTask = ProjectClient.GetMyInvitationsAsync();
+
+            await Task.WhenAll(userProjectsTask, invitationsTask);
+
+            _userProjects = await userProjectsTask;
+            _myInvitations = await invitationsTask;
+
+            if (_activeTab == "discover")
+            {
+                _discoverProjects = await ProjectClient.GetDiscoverProjectsAsync(_searchQuery);
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal memuat proyek riset: " + ex.Message);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SwitchTab(string tab)
+    {
+        _activeTab = tab;
+        if (_activeTab == "discover" && _discoverProjects == null)
+        {
+            _isLoading = true;
+            _discoverProjects = await ProjectClient.GetDiscoverProjectsAsync(_searchQuery);
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await PerformSearch();
+        }
+    }
+
+    private async Task PerformSearch()
+    {
+        _isLoading = true;
+        try
+        {
+            if (_activeTab == "discover")
+            {
+                _discoverProjects = await ProjectClient.GetDiscoverProjectsAsync(_searchQuery);
+            }
+            else
+            {
+                var all = await ProjectClient.GetUserProjectsAsync();
+                if (!string.IsNullOrWhiteSpace(_searchQuery))
+                {
+                    _userProjects = all.Where(p => 
+                        p.Title.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) || 
+                        (p.Abstract != null && p.Abstract.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase))
+                    ).ToList();
+                }
+                else
+                {
+                    _userProjects = all;
+                }
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task RespondInvitation(Guid invitationId, bool accept)
+    {
+        _isResponding = true;
+        try
+        {
+            var success = await ProjectClient.RespondInvitationAsync(invitationId, accept);
+            if (success)
+            {
+                ToastService.ShowSuccess(accept ? "Berhasil menerima undangan kolaborasi!" : "Undangan kolaborasi telah ditolak.");
+                await LoadDataAsync();
+            }
+            else
+            {
+                ToastService.ShowError("Gagal merespons undangan kolaborasi.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Terjadi kesalahan: " + ex.Message);
+        }
+        finally
+        {
+            _isResponding = false;
+        }
+    }
+
+    private void NavigateToCreateProject()
+    {
+        NavigationManager.NavigateTo("projects/create");
+    }
+}

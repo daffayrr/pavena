@@ -1,5 +1,6 @@
 using Pavena.Web.Services.Auth;
 using Pavena.Web.Services.Profile;
+using Pavena.Web.Services.Projects;
 using Pavena.Web.Services.Theme;
 using Pavena.Web.Services.Toast;
 
@@ -14,9 +15,13 @@ builder.Services.AddScoped<IThemeService, ThemeService>();
 builder.Services.AddScoped<IToastService, ToastService>();
 builder.Services.AddScoped<IScholarSessionService, ScholarSessionService>();
 
-// Backend API Client
+// Backend API Clients
 var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5181";
 builder.Services.AddHttpClient<IAcademicProfileClient, AcademicProfileClient>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
+});
+builder.Services.AddHttpClient<IProjectClient, ProjectClient>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
 });

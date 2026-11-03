@@ -32,6 +32,13 @@ public class ProjectAuthorizationHandler : AuthorizationHandler<ResourceOperatio
             return;
         }
 
+        // Platform Superadmin / PlatformAdmin bypass for platform moderation
+        if (context.User.IsInRole(PlatformRole.Superadmin) || context.User.IsInRole(PlatformRole.PlatformAdmin))
+        {
+            context.Succeed(requirement);
+            return;
+        }
+
         // Project Owner always has full rights
         if (project.OwnerUserId == userId)
         {
@@ -39,10 +46,27 @@ public class ProjectAuthorizationHandler : AuthorizationHandler<ResourceOperatio
             return;
         }
 
-        // Query member record
+        // Institutional project owner: check if user is OrganizationAdmin
+        if (project.OwnerOrganizationId.HasValue)
+        {
+            var isOrgAdmin = await _dbContext.OrganizationMemberships
+                .AsNoTracking()
+                .AnyAsync(m => m.OrganizationId == project.OwnerOrganizationId.Value &&
+                               m.UserId == userId &&
+                               m.Role == OrgMembershipRole.OrganizationAdmin &&
+                               m.IsActive);
+
+            if (isOrgAdmin)
+            {
+                context.Succeed(requirement);
+                return;
+            }
+        }
+
+        // Query active member record
         var member = await _dbContext.ResearchMembers
             .AsNoTracking()
-            .FirstOrDefaultAsync(m => m.ProjectId == project.Id && m.UserId == userId);
+            .FirstOrDefaultAsync(m => m.ProjectId == project.Id && m.UserId == userId && m.Status == ProjectMembershipStatus.Active);
 
         if (requirement.Operation == ResourceOperation.Read)
         {
@@ -55,15 +79,28 @@ public class ProjectAuthorizationHandler : AuthorizationHandler<ResourceOperatio
 
         if (member != null)
         {
-            if (requirement.Operation == ResourceOperation.Update &&
-                (member.Role == ResearchRole.Owner || member.Role == ResearchRole.ProjectManager))
+            var isLead = member.Role == ProjectMemberRole.ProjectLead ||
+                         member.Role == ProjectMemberRole.InstitutionalCoordinator;
+
+            if (requirement.Operation == ResourceOperation.Update && isLead)
             {
                 context.Succeed(requirement);
                 return;
             }
 
-            if (requirement.Operation == ResourceOperation.ManageMembers &&
-                (member.Role == ResearchRole.Owner || member.Role == ResearchRole.ProjectManager))
+            if (requirement.Operation == ResourceOperation.ManageMembers && isLead)
+            {
+                context.Succeed(requirement);
+                return;
+            }
+
+            if (requirement.Operation == ResourceOperation.Archive && isLead)
+            {
+                context.Succeed(requirement);
+                return;
+            }
+
+            if (requirement.Operation == ResourceOperation.Delete && isLead)
             {
                 context.Succeed(requirement);
                 return;

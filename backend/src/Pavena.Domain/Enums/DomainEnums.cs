@@ -56,6 +56,13 @@ public enum FollowTargetType
     Organization = 2
 }
 
+public enum ProjectOriginType
+{
+    ResearcherInitiated = 1,
+    IndustryChallenge = 2,
+    InstitutionalInitiated = 3
+}
+
 public enum ProjectVisibility
 {
     Private = 1,
@@ -68,7 +75,58 @@ public enum ProjectStatus
     Draft = 1,
     Active = 2,
     Completed = 3,
-    Archived = 4
+    Archived = 4,
+    Planning = 5,
+    OnHold = 6
+}
+
+public enum ResearchStage
+{
+    Concept = 1,
+    MethodologyDesign = 2,
+    DataCollection = 3,
+    Analysis = 4,
+    Review = 5,
+    IndustryPitchReady = 6,
+    Translation = 7
+}
+
+public enum ProjectMemberRole
+{
+    ProjectLead = 1,
+    Researcher = 2,
+    CoResearcher = 3,
+    ResearchAssistant = 4,
+    InstitutionalCoordinator = 5,
+    IndustryPartner = 6,
+    Observer = 7
+}
+
+public enum ProjectMembershipStatus
+{
+    Invited = 1,
+    Active = 2,
+    Declined = 3,
+    Removed = 4,
+    Left = 5
+}
+
+public enum ProjectInvitationStatus
+{
+    Pending = 1,
+    Accepted = 2,
+    Declined = 3,
+    Revoked = 4,
+    Expired = 5
+}
+
+public enum MilestoneStatus
+{
+    Planned = 1,
+    InProgress = 2,
+    Achieved = 3,
+    Deferred = 4,
+    Cancelled = 5
 }
 
 public enum ResearchRole
