@@ -87,3 +87,91 @@ public record UserSummaryDto(
     IReadOnlyList<string> Roles,
     DateTime CreatedAtUtc
 );
+
+public record UserEducationDto(
+    Guid Id,
+    string InstitutionName,
+    string? Degree,
+    string? FieldOfStudy,
+    int? StartYear,
+    int? EndYear,
+    string? Grade
+);
+
+public record CreateEducationRequest(
+    string InstitutionName,
+    string? Degree,
+    string? FieldOfStudy,
+    int? StartYear,
+    int? EndYear,
+    string? Grade
+);
+
+public record UserExperienceDto(
+    Guid Id,
+    string OrganizationName,
+    string RoleTitle,
+    string? EmploymentType,
+    DateTime? StartDate,
+    DateTime? EndDate,
+    bool IsCurrent,
+    string? Description
+);
+
+public record CreateExperienceRequest(
+    string OrganizationName,
+    string RoleTitle,
+    string? EmploymentType,
+    DateTime? StartDate,
+    DateTime? EndDate,
+    bool IsCurrent,
+    string? Description
+);
+
+public record UserSkillDto(
+    Guid Id,
+    string SkillName
+);
+
+public record CreateSkillRequest(
+    string SkillName
+);
+
+public record AffiliationDto(
+    Guid OrganizationId,
+    string OrganizationName,
+    string? Department,
+    string? Title,
+    string Role,
+    bool IsVerified
+);
+
+public record AcademicProfileDto(
+    Guid UserId,
+    string Username,
+    string DisplayName,
+    string? Headline,
+    string? Bio,
+    string? CountryCode,
+    string? City,
+    string PreferredLanguage,
+    string? AvatarUrl,
+    string? BannerUrl,
+    string Visibility,
+    DateTime UpdatedAtUtc,
+    int CompletenessScore,
+    bool IsVerified,
+    string? Orcid,
+    IReadOnlyList<UserEducationDto> Educations,
+    IReadOnlyList<UserExperienceDto> Experiences,
+    IReadOnlyList<UserSkillDto> Skills,
+    IReadOnlyList<string> Interests,
+    IReadOnlyList<AffiliationDto> Affiliations,
+    int PublicationsCount,
+    int ConnectionsCount,
+    int FollowersCount,
+    int FollowingCount,
+    string? ConnectionStatus,
+    bool IsFollowing,
+    bool CanEdit
+);

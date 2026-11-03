@@ -1,0 +1,203 @@
+@namespace Pavena.Web.Components.Profile
+@using Pavena.Application.Identity.DTOs
+@using Pavena.Web.Components.UI
+
+<div class="pv-profile-header-card">
+    <div class="pv-profile-banner"></div>
+    <div class="pv-profile-header-body">
+        <div class="pv-profile-header-top">
+            <div class="pv-profile-avatar-wrapper">
+                <PvAvatar Name="@Profile.DisplayName" ImageUrl="@Profile.AvatarUrl" Size="xl" Status="online" />
+            </div>
+
+            <div class="pv-profile-actions">
+                @if (IsOwner)
+                {
+                    <PvButton Variant="outline" Size="md" OnClick="OnEditClicked">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                        <span>Edit Profil Peneliti</span>
+                    </PvButton>
+                }
+                else
+                {
+                    <!-- Connection Action Button based on status -->
+                    @if (Profile.ConnectionStatus == "Accepted")
+                    {
+                        <PvButton Variant="secondary" Size="md" Disabled="true">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <span>Terhubung</span>
+                        </PvButton>
+                    }
+                    else if (Profile.ConnectionStatus == "OutgoingPending")
+                    {
+                        <PvButton Variant="outline" Size="md" IsLoading="@IsActionLoading" OnClick="OnCancelConnectClicked">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                            <span>Batalkan Permintaan</span>
+                        </PvButton>
+                    }
+                    else if (Profile.ConnectionStatus == "IncomingPending")
+                    {
+                        <PvButton Variant="primary" Size="md" IsLoading="@IsActionLoading" OnClick="OnAcceptConnectClicked">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <span>Terima Koneksi</span>
+                        </PvButton>
+                    }
+                    else
+                    {
+                        <PvButton Variant="primary" Size="md" IsLoading="@IsActionLoading" OnClick="OnConnectClicked">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="8.5" cy="7" r="4"></circle>
+                                <line x1="20" y1="8" x2="20" y2="14"></line>
+                                <line x1="23" y1="11" x2="17" y2="11"></line>
+                            </svg>
+                            <span>Koneksikan Kolega</span>
+                        </PvButton>
+                    }
+
+                    <!-- Follow / Unfollow Toggle -->
+                    @if (Profile.IsFollowing)
+                    {
+                        <PvButton Variant="outline" Size="md" IsLoading="@IsActionLoading" OnClick="OnUnfollowClicked">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            <span>Berhenti Mengikuti</span>
+                        </PvButton>
+                    }
+                    else
+                    {
+                        <PvButton Variant="ghost" Size="md" IsLoading="@IsActionLoading" OnClick="OnFollowClicked">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="8.5" cy="7" r="4"></circle>
+                                <polyline points="17 11 19 13 23 9"></polyline>
+                            </svg>
+                            <span>Ikuti Peneliti</span>
+                        </PvButton>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="pv-profile-identity">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <h1>@Profile.DisplayName</h1>
+                @if (Profile.IsVerifiedResearcher)
+                {
+                    <span class="pv-pill-verified" title="Peneliti Terverifikasi secara Institusional">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        <span>Peneliti Terverifikasi</span>
+                    </span>
+                }
+                else
+                {
+                    <span class="pv-pill-claimed" title="Profil Anggota Terdaftar (Klaim Peneliti)">
+                        <span>Klaim Peneliti</span>
+                    </span>
+                }
+            </div>
+
+            <div style="font-size: 0.875rem; color: var(--pv-color-text-muted); margin-bottom: 4px;">
+                @@@Profile.Username
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Profile.Headline))
+            {
+                <div class="pv-profile-headline">@Profile.Headline</div>
+            }
+
+            <div class="pv-profile-meta-row">
+                @if (Profile.Affiliations != null && Profile.Affiliations.Any())
+                {
+                    var primaryAff = Profile.Affiliations.First();
+                    <div class="pv-profile-meta-item" title="Afiliasi Primer">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                            <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                        </svg>
+                        <strong>@primaryAff.OrganizationName</strong>
+                        @if (!string.IsNullOrEmpty(primaryAff.RoleOrTitle))
+                        {
+                            <span>(@primaryAff.RoleOrTitle)</span>
+                        }
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Profile.Location))
+                {
+                    <div class="pv-profile-meta-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <span>@Profile.Location</span>
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Profile.Website))
+                {
+                    <a href="@Profile.Website" target="_blank" rel="noopener noreferrer" class="pv-profile-meta-item" style="color: var(--pv-color-secondary); text-decoration: none;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                        <span>Situs Riset</span>
+                    </a>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Profile.OrcidId))
+                {
+                    <a href="https://orcid.org/@Profile.OrcidId" target="_blank" rel="noopener noreferrer" class="pv-orcid-badge" title="ID ORCID Peneliti (Metadata Klaim Peneliti)">
+                        <span>iD</span>
+                        <span>@Profile.OrcidId</span>
+                    </a>
+                }
+            </div>
+
+            <div class="pv-profile-stats-row">
+                <div class="pv-stat-item">
+                    <strong>@Profile.PublicationsCount</strong>
+                    <span>Publikasi & Naskah</span>
+                </div>
+                <div class="pv-stat-item">
+                    <strong>@Profile.ConnectionsCount</strong>
+                    <span>Koneksi Rekan</span>
+                </div>
+                <div class="pv-stat-item">
+                    <strong>@Profile.FollowersCount</strong>
+                    <span>Pengikut</span>
+                </div>
+                <div class="pv-stat-item">
+                    <strong>@Profile.FollowingCount</strong>
+                    <span>Mengikuti</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public AcademicProfileDto Profile { get; set; } = default!;
+    [Parameter] public bool IsOwner { get; set; }
+    [Parameter] public bool IsActionLoading { get; set; }
+    [Parameter] public EventCallback OnEditClicked { get; set; }
+    [Parameter] public EventCallback OnConnectClicked { get; set; }
+    [Parameter] public EventCallback OnCancelConnectClicked { get; set; }
+    [Parameter] public EventCallback OnAcceptConnectClicked { get; set; }
+    [Parameter] public EventCallback OnFollowClicked { get; set; }
+    [Parameter] public EventCallback OnUnfollowClicked { get; set; }
+}

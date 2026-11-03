@@ -19,6 +19,15 @@ public interface IUserProfileService
     Task<UserProfileDto?> GetProfileByUserIdAsync(Guid userId, Guid? callerUserId = null, CancellationToken cancellationToken = default);
     Task<UserProfileDto?> GetProfileByUsernameAsync(string username, Guid? callerUserId = null, CancellationToken cancellationToken = default);
     Task<UserProfileDto> UpdateProfileAsync(Guid userId, UpdateProfileRequest request, CancellationToken cancellationToken = default);
+
+    Task<AcademicProfileDto?> GetAcademicProfileAsync(string identifier, Guid? callerUserId = null, CancellationToken cancellationToken = default);
+    Task<AcademicProfileDto?> GetAcademicProfileByUserIdAsync(Guid userId, Guid? callerUserId = null, CancellationToken cancellationToken = default);
+    Task<UserEducationDto> AddEducationAsync(Guid userId, CreateEducationRequest request, CancellationToken cancellationToken = default);
+    Task<bool> DeleteEducationAsync(Guid userId, Guid educationId, CancellationToken cancellationToken = default);
+    Task<UserExperienceDto> AddExperienceAsync(Guid userId, CreateExperienceRequest request, CancellationToken cancellationToken = default);
+    Task<bool> DeleteExperienceAsync(Guid userId, Guid experienceId, CancellationToken cancellationToken = default);
+    Task<UserSkillDto> AddSkillAsync(Guid userId, string skillName, CancellationToken cancellationToken = default);
+    Task<bool> DeleteSkillAsync(Guid userId, Guid skillId, CancellationToken cancellationToken = default);
 }
 
 public interface ICurrentUserService

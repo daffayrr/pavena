@@ -1,0 +1,83 @@
+@namespace Pavena.Web.Components.Profile
+@using Pavena.Application.Identity.DTOs
+@using Pavena.Web.Components.UI
+
+<div class="pv-completeness-card">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <div>
+            <div style="font-weight: 600; font-size: 0.9375rem; color: var(--pv-color-text); display: flex; align-items: center; gap: 6px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-secondary);">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 14 14"></polyline>
+                </svg>
+                <span>Kelengkapan Profil Peneliti (@Score%)</span>
+            </div>
+            <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin-top: 2px;">
+                @if (Score >= 100)
+                {
+                    <span>Profil akademik Anda telah lengkap dan terindeks secara optimal untuk kolaborasi global.</span>
+                }
+                else
+                {
+                    <span>Lengkapi riwayat akademik dan keahlian untuk meningkatkan kredibilitas dan peluang kolaborasi.</span>
+                }
+            </div>
+        </div>
+
+        @if (Score < 100)
+        {
+            <PvButton Variant="outline" Size="sm" OnClick="OnCompleteAction">
+                <span>Lengkapi Sekarang</span>
+            </PvButton>
+        }
+    </div>
+
+    <div class="pv-progress-bar-container" role="progressbar" aria-valuenow="@Score" aria-valuemin="0" aria-valuemax="100">
+        <div class="pv-progress-bar-fill" style="width: @(Math.Clamp(Score, 0, 100))%;"></div>
+    </div>
+
+    <div class="pv-completeness-tasks">
+        <span class="pv-task-badge @(HasHeadline ? "is-completed" : "")">
+            @if (HasHeadline) { <span>✓</span> } else { <span>○</span> }
+            <span>Headline Akademik</span>
+        </span>
+        <span class="pv-task-badge @(HasBio ? "is-completed" : "")">
+            @if (HasBio) { <span>✓</span> } else { <span>○</span> }
+            <span>Biografi Riset</span>
+        </span>
+        <span class="pv-task-badge @(HasEducation ? "is-completed" : "")">
+            @if (HasEducation) { <span>✓</span> } else { <span>○</span> }
+            <span>Riwayat Pendidikan</span>
+        </span>
+        <span class="pv-task-badge @(HasExperience ? "is-completed" : "")">
+            @if (HasExperience) { <span>✓</span> } else { <span>○</span> }
+            <span>Pengalaman Riset</span>
+        </span>
+        <span class="pv-task-badge @(HasSkills ? "is-completed" : "")">
+            @if (HasSkills) { <span>✓</span> } else { <span>○</span> }
+            <span>Keahlian Spesifik</span>
+        </span>
+        <span class="pv-task-badge @(HasOrcid ? "is-completed" : "")">
+            @if (HasOrcid) { <span>✓</span> } else { <span>○</span> }
+            <span>ORCID iD</span>
+        </span>
+        <span class="pv-task-badge @(HasAffiliation ? "is-completed" : "")">
+            @if (HasAffiliation) { <span>✓</span> } else { <span>○</span> }
+            <span>Afiliasi Lembaga</span>
+        </span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public AcademicProfileDto Profile { get; set; } = default!;
+    [Parameter] public EventCallback OnCompleteAction { get; set; }
+
+    private int Score => Profile?.ProfileCompletenessScore ?? 0;
+    private bool HasHeadline => !string.IsNullOrWhiteSpace(Profile?.Headline);
+    private bool HasBio => !string.IsNullOrWhiteSpace(Profile?.Bio);
+    private bool HasEducation => Profile?.Educations != null && Profile.Educations.Any();
+    private bool HasExperience => Profile?.Experiences != null && Profile.Experiences.Any();
+    private bool HasSkills => Profile?.Skills != null && Profile.Skills.Any();
+    private bool HasOrcid => !string.IsNullOrWhiteSpace(Profile?.OrcidId);
+    private bool HasAffiliation => Profile?.Affiliations != null && Profile.Affiliations.Any();
+}

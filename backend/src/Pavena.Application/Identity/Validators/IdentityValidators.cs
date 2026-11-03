@@ -90,3 +90,52 @@ public class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequ
             .WithMessage("Invalid profile visibility.");
     }
 }
+
+public class CreateEducationRequestValidator : AbstractValidator<CreateEducationRequest>
+{
+    public CreateEducationRequestValidator()
+    {
+        RuleFor(x => x.InstitutionName)
+            .NotEmpty().WithMessage("Nama institusi pendidikan wajib diisi.")
+            .MaximumLength(200).WithMessage("Nama institusi maksimal 200 karakter.");
+
+        RuleFor(x => x.Degree)
+            .MaximumLength(100).WithMessage("Gelar akademik maksimal 100 karakter.");
+
+        RuleFor(x => x.FieldOfStudy)
+            .MaximumLength(150).WithMessage("Bidang studi maksimal 150 karakter.");
+
+        RuleFor(x => x.EndYear)
+            .GreaterThanOrEqualTo(x => x.StartYear ?? 1900)
+            .When(x => x.StartYear.HasValue && x.EndYear.HasValue)
+            .WithMessage("Tahun lulus tidak boleh lebih awal dari tahun mulai.");
+    }
+}
+
+public class CreateExperienceRequestValidator : AbstractValidator<CreateExperienceRequest>
+{
+    public CreateExperienceRequestValidator()
+    {
+        RuleFor(x => x.OrganizationName)
+            .NotEmpty().WithMessage("Nama organisasi/lembaga riset wajib diisi.")
+            .MaximumLength(200).WithMessage("Nama organisasi maksimal 200 karakter.");
+
+        RuleFor(x => x.RoleTitle)
+            .NotEmpty().WithMessage("Posisi/jabatan riset wajib diisi.")
+            .MaximumLength(150).WithMessage("Posisi/jabatan maksimal 150 karakter.");
+
+        RuleFor(x => x.Description)
+            .MaximumLength(2000).WithMessage("Deskripsi pengalaman maksimal 2000 karakter.");
+    }
+}
+
+public class CreateSkillRequestValidator : AbstractValidator<CreateSkillRequest>
+{
+    public CreateSkillRequestValidator()
+    {
+        RuleFor(x => x.SkillName)
+            .NotEmpty().WithMessage("Nama keahlian riset wajib diisi.")
+            .MinimumLength(2).WithMessage("Keahlian riset minimal 2 karakter.")
+            .MaximumLength(100).WithMessage("Keahlian riset maksimal 100 karakter.");
+    }
+}

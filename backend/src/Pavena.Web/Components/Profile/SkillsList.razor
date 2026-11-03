@@ -1,0 +1,90 @@
+@namespace Pavena.Web.Components.Profile
+@using Pavena.Application.Identity.DTOs
+@using Pavena.Web.Components.UI
+
+<div class="pv-profile-section">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--pv-space-4);">
+        <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-text); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-primary);">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+            <span>Keahlian & Bidang Riset</span>
+        </h3>
+    </div>
+
+    @if (Skills == null || !Skills.Any())
+    {
+        <PvEmptyState Title="Belum ada keahlian ditambahkan"
+                      Description="Tambahkan keahlian teknis atau metodologi ilmiah untuk mempermudah pencarian sejawat." />
+    }
+    else
+    {
+        <div class="pv-skills-wrap">
+            @foreach (var skill in Skills)
+            {
+                <span class="pv-skill-chip">
+                    <span>@skill.SkillName</span>
+                    @if (IsOwner)
+                    {
+                        <button type="button"
+                                class="pv-skill-remove-btn"
+                                title="Hapus keahlian @skill.SkillName"
+                                @onclick="() => HandleDelete(skill.Id)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    }
+                </span>
+            }
+        </div>
+    }
+
+    @if (IsOwner)
+    {
+        <div style="margin-top: var(--pv-space-4); display: flex; gap: 8px; max-width: 400px;">
+            <input type="text"
+                   class="pv-input pv-input-sm"
+                   placeholder="Contoh: Bioinformatika, CRISPR..."
+                   @bind="newSkillText"
+                   @bind:event="oninput"
+                   @onkeydown="HandleKeyDown" />
+            <PvButton Variant="outline" Size="sm" OnClick="HandleAddSkill" Disabled="@(string.IsNullOrWhiteSpace(newSkillText))">
+                <span>Tambah</span>
+            </PvButton>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<UserSkillDto>? Skills { get; set; }
+    [Parameter] public bool IsOwner { get; set; }
+    [Parameter] public EventCallback<string> OnAddSkill { get; set; }
+    [Parameter] public EventCallback<Guid> OnDeleteSkill { get; set; }
+
+    private string newSkillText = "";
+
+    private async Task HandleAddSkill()
+    {
+        if (!string.IsNullOrWhiteSpace(newSkillText))
+        {
+            var skill = newSkillText.Trim();
+            newSkillText = "";
+            await OnAddSkill.InvokeAsync(skill);
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await HandleAddSkill();
+        }
+    }
+
+    private async Task HandleDelete(Guid id)
+    {
+        await OnDeleteSkill.InvokeAsync(id);
+    }
+}

@@ -1,0 +1,102 @@
+@namespace Pavena.Web.Components.Profile
+@using Pavena.Application.Identity.DTOs
+@using Pavena.Web.Components.UI
+
+<div class="pv-profile-section">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--pv-space-4);">
+        <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-text); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-primary);">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+            </svg>
+            <span>Riwayat Pendidikan</span>
+        </h3>
+
+        @if (IsOwner)
+        {
+            <PvButton Variant="ghost" Size="sm" OnClick="OnAddClicked">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Tambah Pendidikan</span>
+            </PvButton>
+        }
+    </div>
+
+    @if (Educations == null || !Educations.Any())
+    {
+        <PvEmptyState Title="Belum ada riwayat pendidikan"
+                      Description="Riwayat gelar sarjana, magister, atau doktoral akan ditampilkan di sini." />
+    }
+    else
+    {
+        <div class="pv-academic-list">
+            @foreach (var edu in Educations)
+            {
+                <div class="pv-academic-item">
+                    <div class="pv-academic-item-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="pv-academic-item-content">
+                        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
+                            <div>
+                                <div class="pv-academic-item-title">@edu.InstitutionName</div>
+                                <div class="pv-academic-item-subtitle">
+                                    @edu.Degree
+                                    @if (!string.IsNullOrWhiteSpace(edu.FieldOfStudy))
+                                    {
+                                        <span> · @edu.FieldOfStudy</span>
+                                    }
+                                </div>
+                            </div>
+
+                            @if (IsOwner)
+                            {
+                                <button type="button"
+                                        class="pv-btn pv-btn-ghost pv-btn-sm pv-btn-icon is-danger"
+                                        title="Hapus riwayat pendidikan"
+                                        @onclick="() => HandleDelete(edu.Id)">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                            }
+                        </div>
+
+                        <div class="pv-academic-item-meta">
+                            <span>@(edu.StartYear?.ToString() ?? "—") – @(edu.EndYear?.ToString() ?? "Sekarang")</span>
+                            @if (!string.IsNullOrWhiteSpace(edu.GradeOrHonors))
+                            {
+                                <PvBadge Variant="secondary">@edu.GradeOrHonors</PvBadge>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(edu.Activities))
+                        {
+                            <div class="pv-academic-item-desc">
+                                @edu.Activities
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<UserEducationDto>? Educations { get; set; }
+    [Parameter] public bool IsOwner { get; set; }
+    [Parameter] public EventCallback OnAddClicked { get; set; }
+    [Parameter] public EventCallback<Guid> OnDeleteEducation { get; set; }
+
+    private async Task HandleDelete(Guid id)
+    {
+        await OnDeleteEducation.InvokeAsync(id);
+    }
+}

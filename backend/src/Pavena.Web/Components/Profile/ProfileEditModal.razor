@@ -1,0 +1,425 @@
+@namespace Pavena.Web.Components.Profile
+@using Pavena.Application.Identity.DTOs
+@using Pavena.Web.Components.UI
+@using Pavena.Web.Services.Profile
+@using Pavena.Web.Services.Toast
+@inject IAcademicProfileClient ProfileClient
+@inject IToastService ToastService
+
+<PvModal IsOpen="@IsOpen" IsOpenChanged="@IsOpenChanged" Title="Pengaturan & Edit Profil Akademik" MaxWidth="720px">
+    <ChildContent>
+        <div style="margin-bottom: var(--pv-space-4);">
+            <PvTabs Tabs="@editTabs" ActiveTab="@activeTab" ActiveTabChanged="HandleTabChanged" />
+        </div>
+
+        @if (activeTab == "basic")
+        {
+            <div style="display: flex; flex-direction: column; gap: var(--pv-space-4);">
+                <PvInput Id="edit-display-name"
+                         Label="Nama Lengkap & Gelar"
+                         Required="true"
+                         Value="@editDisplayName"
+                         ValueChanged="@(val => editDisplayName = val)"
+                         Placeholder="Contoh: Dr. Marie Curie" />
+
+                <PvInput Id="edit-headline"
+                         Label="Headline Akademik"
+                         Value="@editHeadline"
+                         ValueChanged="@(val => editHeadline = val)"
+                         Placeholder="Contoh: Professor of Chemistry | Nuclear Physics Researcher"
+                         HintMessage="Ringkasan posisi atau fokus penelitian Anda." />
+
+                <PvInput Id="edit-bio"
+                         Label="Biografi Ilmiah"
+                         IsMultiline="true"
+                         Rows="4"
+                         Value="@editBio"
+                         ValueChanged="@(val => editBio = val)"
+                         Placeholder="Tuliskan latar belakang penelitian, minat akademik, dan visi riset Anda..." />
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--pv-space-4);">
+                    <PvInput Id="edit-location"
+                             Label="Lokasi / Kota"
+                             Value="@editLocation"
+                             ValueChanged="@(val => editLocation = val)"
+                             Placeholder="Contoh: Paris, France" />
+
+                    <PvInput Id="edit-website"
+                             Label="Situs Web Lab / Pribadi"
+                             Value="@editWebsite"
+                             ValueChanged="@(val => editWebsite = val)"
+                             Placeholder="https://lab.sorbonne.fr" />
+                </div>
+
+                <PvInput Id="edit-orcid"
+                         Label="ORCID iD"
+                         Value="@editOrcid"
+                         ValueChanged="@(val => editOrcid = val)"
+                         Placeholder="0000-0002-1825-0097"
+                         HintMessage="Format 16 digit (contoh: 0000-0002-1825-0097). ORCID adalah tanda pengenal mandiri peneliti." />
+
+                <div class="pv-form-group">
+                    <label class="pv-label" for="edit-privacy">Tingkat Privasi Profil</label>
+                    <select id="edit-privacy" class="pv-input" @bind="editPrivacy">
+                        <option value="Public">Publik (Dapat dilihat oleh semua peneliti & mesin pencari)</option>
+                        <option value="NetworkOnly">Jaringan Kolega (Hanya koneksi dan rekan terdaftar)</option>
+                        <option value="Private">Privat (Hanya Anda yang dapat melihat profil)</option>
+                    </select>
+                    <div class="pv-form-hint">Otorisasi privasi diverifikasi secara ketat di sisi server.</div>
+                </div>
+            </div>
+        }
+        else if (activeTab == "education")
+        {
+            <div style="display: flex; flex-direction: column; gap: var(--pv-space-3);">
+                <PvInput Id="edu-inst"
+                         Label="Nama Institusi / Universitas"
+                         Required="true"
+                         Value="@newEduInstitution"
+                         ValueChanged="@(v => newEduInstitution = v)"
+                         Placeholder="Contoh: Sorbonne Université" />
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--pv-space-3);">
+                    <PvInput Id="edu-degree"
+                             Label="Gelar"
+                             Required="true"
+                             Value="@newEduDegree"
+                             ValueChanged="@(v => newEduDegree = v)"
+                             Placeholder="Contoh: Ph.D. / Doktor" />
+
+                    <PvInput Id="edu-field"
+                             Label="Bidang Studi"
+                             Value="@newEduField"
+                             ValueChanged="@(v => newEduField = v)"
+                             Placeholder="Contoh: Fisika Material" />
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--pv-space-3);">
+                    <div class="pv-form-group">
+                        <label class="pv-label" for="edu-start">Tahun Mulai</label>
+                        <input id="edu-start" type="number" class="pv-input" @bind="newEduStartYear" min="1900" max="2100" />
+                    </div>
+                    <div class="pv-form-group">
+                        <label class="pv-label" for="edu-end">Tahun Selesai (Kosongkan bila aktif)</label>
+                        <input id="edu-end" type="number" class="pv-input" @bind="newEduEndYear" min="1900" max="2100" />
+                    </div>
+                </div>
+
+                <PvInput Id="edu-honors"
+                         Label="Predikat Kelulusan / Penghargaan"
+                         Value="@newEduHonors"
+                         ValueChanged="@(v => newEduHonors = v)"
+                         Placeholder="Contoh: Summa Cum Laude" />
+
+                <PvInput Id="edu-act"
+                         Label="Fokus Riset & Naskah Disertasi"
+                         IsMultiline="true"
+                         Rows="2"
+                         Value="@newEduActivities"
+                         ValueChanged="@(v => newEduActivities = v)"
+                         Placeholder="Topik disertasi atau aktivitas riset akademik selama studi..." />
+
+                <div style="margin-top: 8px;">
+                    <PvButton Variant="primary" Size="sm" IsLoading="@isSavingSubItem" OnClick="SaveEducation">
+                        <span>Simpan Riwayat Pendidikan</span>
+                    </PvButton>
+                </div>
+            </div>
+        }
+        else if (activeTab == "experience")
+        {
+            <div style="display: flex; flex-direction: column; gap: var(--pv-space-3);">
+                <PvInput Id="exp-title"
+                         Label="Jabatan / Peran Riset"
+                         Required="true"
+                         Value="@newExpTitle"
+                         ValueChanged="@(v => newExpTitle = v)"
+                         Placeholder="Contoh: Principal Investigator / Guru Besar" />
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--pv-space-3);">
+                    <PvInput Id="exp-inst"
+                             Label="Lembaga / Universitas / Lab"
+                             Required="true"
+                             Value="@newExpInst"
+                             ValueChanged="@(v => newExpInst = v)"
+                             Placeholder="Contoh: Institut du Radium" />
+
+                    <PvInput Id="exp-loc"
+                             Label="Lokasi Lembaga"
+                             Value="@newExpLoc"
+                             ValueChanged="@(v => newExpLoc = v)"
+                             Placeholder="Contoh: Paris, France" />
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--pv-space-3);">
+                    <div class="pv-form-group">
+                        <label class="pv-label" for="exp-start">Tanggal Mulai</label>
+                        <input id="exp-start" type="date" class="pv-input" @bind="newExpStartDate" />
+                    </div>
+                    <div class="pv-form-group">
+                        <label class="pv-label" for="exp-end">Tanggal Berakhir</label>
+                        <input id="exp-end" type="date" class="pv-input" @bind="newExpEndDate" disabled="@newExpIsCurrent" />
+                    </div>
+                </div>
+
+                <div class="pv-form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.875rem; cursor: pointer;">
+                        <input type="checkbox" @bind="newExpIsCurrent" />
+                        <span>Saya sedang menduduki posisi riset ini</span>
+                    </label>
+                </div>
+
+                <PvInput Id="exp-desc"
+                         Label="Deskripsi Tanggung Jawab & Hibah Riset"
+                         IsMultiline="true"
+                         Rows="3"
+                         Value="@newExpDesc"
+                         ValueChanged="@(v => newExpDesc = v)"
+                         Placeholder="Fokus pengujian, pengelolaan laboratorium, hibah riset, atau pencapaian..." />
+
+                <div style="margin-top: 8px;">
+                    <PvButton Variant="primary" Size="sm" IsLoading="@isSavingSubItem" OnClick="SaveExperience">
+                        <span>Simpan Pengalaman Riset</span>
+                    </PvButton>
+                </div>
+            </div>
+        }
+        else if (activeTab == "preview")
+        {
+            <div style="padding: var(--pv-space-3); background-color: var(--pv-color-background); border-radius: var(--pv-radius-md); border: 1px solid var(--pv-color-border);">
+                <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--pv-color-secondary); margin-bottom: 8px;">
+                    Pratinjau Tampilan Profil Kolega
+                </div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: var(--pv-color-text);">
+                    @(string.IsNullOrWhiteSpace(editDisplayName) ? Profile.DisplayName : editDisplayName)
+                </div>
+                <div style="font-size: 0.9375rem; color: var(--pv-color-text-muted); margin-top: 2px;">
+                    @(string.IsNullOrWhiteSpace(editHeadline) ? "Belum ada headline akademik" : editHeadline)
+                </div>
+                <div style="font-size: 0.875rem; margin-top: 12px; line-height: 1.5; color: var(--pv-color-text);">
+                    @(string.IsNullOrWhiteSpace(editBio) ? "Belum ada biografi ilmiah." : editBio)
+                </div>
+                <div style="margin-top: 12px; display: flex; gap: 12px; font-size: 0.8125rem; color: var(--pv-color-text-muted);">
+                    @if (!string.IsNullOrWhiteSpace(editLocation))
+                    {
+                        <span>📍 @editLocation</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(editWebsite))
+                    {
+                        <span>🔗 @editWebsite</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(editOrcid))
+                    {
+                        <span class="pv-orcid-badge" style="font-size: 0.6875rem; padding: 2px 6px;">iD @editOrcid</span>
+                    }
+                </div>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <PvButton Variant="ghost" OnClick="HandleClose">Batal</PvButton>
+        <PvButton Variant="primary" IsLoading="@isSaving" OnClick="HandleSaveBasicProfile">
+            <span>Simpan Perubahan</span>
+        </PvButton>
+    </Footer>
+</PvModal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public AcademicProfileDto Profile { get; set; } = default!;
+    [Parameter] public EventCallback OnProfileSaved { get; set; }
+
+    private string activeTab = "basic";
+    private bool isSaving = false;
+    private bool isSavingSubItem = false;
+
+    // Basic form fields
+    private string editDisplayName = "";
+    private string editHeadline = "";
+    private string editBio = "";
+    private string editLocation = "";
+    private string editWebsite = "";
+    private string editOrcid = "";
+    private string editPrivacy = "Public";
+
+    // New Education fields
+    private string newEduInstitution = "";
+    private string newEduDegree = "";
+    private string newEduField = "";
+    private int? newEduStartYear;
+    private int? newEduEndYear;
+    private string newEduHonors = "";
+    private string newEduActivities = "";
+
+    // New Experience fields
+    private string newExpTitle = "";
+    private string newExpInst = "";
+    private string newExpLoc = "";
+    private DateTime newExpStartDate = DateTime.UtcNow.AddYears(-2);
+    private DateTime? newExpEndDate;
+    private bool newExpIsCurrent = true;
+    private string newExpDesc = "";
+
+    private readonly List<PvTabs.TabItem> editTabs = new()
+    {
+        new("basic", "Informasi Dasar"),
+        new("education", "Tambah Pendidikan"),
+        new("experience", "Tambah Pengalaman"),
+        new("preview", "Pratinjau")
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (Profile != null)
+        {
+            editDisplayName = Profile.DisplayName;
+            editHeadline = Profile.Headline ?? "";
+            editBio = Profile.Bio ?? "";
+            editLocation = Profile.Location ?? "";
+            editWebsite = Profile.Website ?? "";
+            editOrcid = Profile.OrcidId ?? "";
+            editPrivacy = Profile.PrivacyLevel ?? "Public";
+        }
+    }
+
+    private void HandleTabChanged(string tab)
+    {
+        activeTab = tab;
+    }
+
+    private async Task HandleClose()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    private async Task HandleSaveBasicProfile()
+    {
+        if (string.IsNullOrWhiteSpace(editDisplayName))
+        {
+            ToastService.ShowError("Nama tampilan tidak boleh kosong.");
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            var req = new UpdateProfileRequest(
+                editDisplayName,
+                editHeadline,
+                editBio,
+                editLocation,
+                editWebsite,
+                editOrcid,
+                editPrivacy
+            );
+
+            var updated = await ProfileClient.UpdateProfileAsync(req);
+            if (updated != null)
+            {
+                ToastService.ShowSuccess("Profil akademik berhasil diperbarui.");
+                await OnProfileSaved.InvokeAsync();
+                await HandleClose();
+            }
+            else
+            {
+                ToastService.ShowError("Gagal memperbarui profil. Silakan periksa kembali data Anda.");
+            }
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task SaveEducation()
+    {
+        if (string.IsNullOrWhiteSpace(newEduInstitution) || string.IsNullOrWhiteSpace(newEduDegree))
+        {
+            ToastService.ShowError("Nama institusi dan gelar wajib diisi.");
+            return;
+        }
+
+        isSavingSubItem = true;
+        try
+        {
+            var req = new CreateEducationRequest(
+                newEduInstitution,
+                newEduDegree,
+                newEduField,
+                newEduStartYear,
+                newEduEndYear,
+                newEduHonors,
+                newEduActivities
+            );
+
+            var result = await ProfileClient.AddEducationAsync(req);
+            if (result != null)
+            {
+                ToastService.ShowSuccess($"Riwayat pendidikan di {newEduInstitution} berhasil ditambahkan.");
+                newEduInstitution = "";
+                newEduDegree = "";
+                newEduField = "";
+                newEduStartYear = null;
+                newEduEndYear = null;
+                newEduHonors = "";
+                newEduActivities = "";
+                await OnProfileSaved.InvokeAsync();
+            }
+            else
+            {
+                ToastService.ShowError("Gagal menambahkan riwayat pendidikan.");
+            }
+        }
+        finally
+        {
+            isSavingSubItem = false;
+        }
+    }
+
+    private async Task SaveExperience()
+    {
+        if (string.IsNullOrWhiteSpace(newExpTitle) || string.IsNullOrWhiteSpace(newExpInst))
+        {
+            ToastService.ShowError("Jabatan dan lembaga wajib diisi.");
+            return;
+        }
+
+        isSavingSubItem = true;
+        try
+        {
+            var req = new CreateExperienceRequest(
+                newExpTitle,
+                newExpInst,
+                newExpLoc,
+                newExpStartDate,
+                newExpIsCurrent ? null : newExpEndDate,
+                newExpIsCurrent,
+                newExpDesc
+            );
+
+            var result = await ProfileClient.AddExperienceAsync(req);
+            if (result != null)
+            {
+                ToastService.ShowSuccess($"Pengalaman riset di {newExpInst} berhasil ditambahkan.");
+                newExpTitle = "";
+                newExpInst = "";
+                newExpLoc = "";
+                newExpStartDate = DateTime.UtcNow.AddYears(-1);
+                newExpEndDate = null;
+                newExpIsCurrent = true;
+                newExpDesc = "";
+                await OnProfileSaved.InvokeAsync();
+            }
+            else
+            {
+                ToastService.ShowError("Gagal menambahkan pengalaman riset.");
+            }
+        }
+        finally
+        {
+            isSavingSubItem = false;
+        }
+    }
+}

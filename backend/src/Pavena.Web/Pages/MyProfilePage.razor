@@ -1,0 +1,289 @@
+@page "/profile"
+@page "/profile/me"
+@namespace Pavena.Web.Pages
+@using Pavena.Application.Identity.DTOs
+@using Pavena.Application.Social.DTOs
+@using Pavena.Web.Components.Profile
+@using Pavena.Web.Components.UI
+@using Pavena.Web.Services.Profile
+@using Pavena.Web.Services.Toast
+@inject IAcademicProfileClient ProfileClient
+@inject IToastService ToastService
+
+<PageTitle>Profil Akademik Saya — Pavena</PageTitle>
+
+@if (isLoading)
+{
+    <PvLoading Text="Memuat profil akademik Anda..." />
+}
+else if (profile == null)
+{
+    <PvErrorState Title="Gagal Memuat Profil"
+                  Description="Tidak dapat mengambil data profil akademik dari server. Pastikan Anda telah masuk ke akun terdaftar."
+                  RetryText="Coba Lagi"
+                  OnRetry="LoadProfileAsync" />
+}
+else
+{
+    <div class="pv-container" style="max-width: 1040px; margin: 0 auto; padding-bottom: var(--pv-space-12);">
+        <!-- Profile Header with Actions and Identity -->
+        <ProfileHeader Profile="@profile"
+                       IsOwner="true"
+                       OnEditClicked="OpenEditModal" />
+
+        <!-- Profile Completeness Indicator -->
+        <CompletenessCard Profile="@profile" OnCompleteAction="OpenEditModal" />
+
+        <!-- 2-Column Responsive Academic Layout -->
+        <div style="display: grid; grid-template-columns: 2fr 1.1fr; gap: var(--pv-space-6); align-items: start;">
+            <!-- Left Main Column -->
+            <div style="display: flex; flex-direction: column; gap: var(--pv-space-6);">
+                <!-- Bio Card -->
+                <PvCard>
+                    <Header>
+                        <h3 style="font-size: 1.125rem; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-primary);">
+                                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                            </svg>
+                            <span>Biografi Ilmiah</span>
+                        </h3>
+                    </Header>
+                    <ChildContent>
+                        @if (string.IsNullOrWhiteSpace(profile.Bio))
+                        {
+                            <PvEmptyState Title="Belum ada biografi"
+                                          Description="Tambahkan pernyataan visi riset atau biografi untuk kolega akademik." />
+                        }
+                        else
+                        {
+                            <div style="font-size: 0.9375rem; line-height: 1.6; color: var(--pv-color-text); white-space: pre-line;">
+                                @profile.Bio
+                            </div>
+                        }
+                    </ChildContent>
+                </PvCard>
+
+                <!-- Education History -->
+                <PvCard>
+                    <ChildContent>
+                        <EducationList Educations="@profile.Educations"
+                                       IsOwner="true"
+                                       OnAddClicked="OpenEditModal"
+                                       OnDeleteEducation="HandleDeleteEducation" />
+                    </ChildContent>
+                </PvCard>
+
+                <!-- Research & Academic Experience -->
+                <PvCard>
+                    <ChildContent>
+                        <ExperienceList Experiences="@profile.Experiences"
+                                        IsOwner="true"
+                                        OnAddClicked="OpenEditModal"
+                                        OnDeleteExperience="HandleDeleteExperience" />
+                    </ChildContent>
+                </PvCard>
+
+                <!-- Publications & Scholarly Posts -->
+                <PvCard>
+                    <Header>
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <h3 style="font-size: 1.125rem; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-primary);">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                </svg>
+                                <span>Publikasi & Artikel Ilmiah</span>
+                            </h3>
+                            <PvBadge Variant="primary">@(posts?.Count ?? profile.PublicationsCount)</PvBadge>
+                        </div>
+                    </Header>
+                    <ChildContent>
+                        @if (posts == null || !posts.Any())
+                        {
+                            <PvEmptyState Title="Belum ada artikel publikasi"
+                                          Description="Artikel atau naskah ilmiah yang Anda publikasikan di Pavena akan tampil di sini." />
+                        }
+                        else
+                        {
+                            <div class="pv-academic-list">
+                                @foreach (var post in posts)
+                                {
+                                    <div class="pv-academic-item">
+                                        <div class="pv-academic-item-icon">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                            </svg>
+                                        </div>
+                                        <div class="pv-academic-item-content">
+                                            <div style="font-size: 0.9375rem; color: var(--pv-color-text); line-height: 1.5; margin-bottom: 6px;">
+                                                @post.Content
+                                            </div>
+                                            <div class="pv-academic-item-meta">
+                                                <span>@(post.PublishedAt?.ToString("dd MMM yyyy") ?? post.CreatedAt.ToString("dd MMM yyyy"))</span>
+                                                <PvBadge Variant="secondary">@post.Visibility</PvBadge>
+                                                <PvBadge Variant="neutral">@post.Status</PvBadge>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </ChildContent>
+                </PvCard>
+            </div>
+
+            <!-- Right Sidebar Column -->
+            <div style="display: flex; flex-direction: column; gap: var(--pv-space-6);">
+                <!-- Institutional Affiliations -->
+                <PvCard>
+                    <ChildContent>
+                        <AffiliationsList Affiliations="@profile.Affiliations" />
+                    </ChildContent>
+                </PvCard>
+
+                <!-- Research Expertise / Skills -->
+                <PvCard>
+                    <ChildContent>
+                        <SkillsList Skills="@profile.Skills"
+                                    IsOwner="true"
+                                    OnAddSkill="HandleAddSkill"
+                                    OnDeleteSkill="HandleDeleteSkill" />
+                    </ChildContent>
+                </PvCard>
+
+                <!-- Privacy & Verification Info Card -->
+                <PvCard>
+                    <Header>
+                        <h4 style="font-size: 0.9375rem; font-weight: 600; margin: 0; color: var(--pv-color-text);">
+                            Privasi & Keabsahan Riset
+                        </h4>
+                    </Header>
+                    <ChildContent>
+                        <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted); display: flex; flex-direction: column; gap: 8px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span>Tingkat Privasi:</span>
+                                <PvBadge Variant="secondary">@profile.PrivacyLevel</PvBadge>
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span>Verifikasi Peneliti:</span>
+                                @if (profile.IsVerifiedResearcher)
+                                {
+                                    <span class="pv-pill-verified">Terverifikasi</span>
+                                }
+                                else
+                                {
+                                    <span class="pv-pill-claimed">Klaim Terdaftar</span>
+                                }
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--pv-color-text-subtle); margin-top: 4px; line-height: 1.4;">
+                                Seluruh aturan akses visibilitas dan relasi kolegial dilindungi oleh otorisasi server-side Pavena.
+                            </div>
+                        </div>
+                    </ChildContent>
+                </PvCard>
+            </div>
+        </div>
+
+        <!-- Edit Profile Modal -->
+        <ProfileEditModal IsOpen="@isEditModalOpen"
+                          IsOpenChanged="@(v => isEditModalOpen = v)"
+                          Profile="@profile"
+                          OnProfileSaved="LoadProfileAsync" />
+    </div>
+}
+
+@code {
+    private AcademicProfileDto? profile;
+    private List<PostDto>? posts;
+    private bool isLoading = true;
+    private bool isEditModalOpen = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfileAsync();
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        isLoading = true;
+        try
+        {
+            profile = await ProfileClient.GetMyAcademicProfileAsync();
+            if (profile != null)
+            {
+                posts = await ProfileClient.GetUserPostsAsync(profile.UserId);
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Gagal memuat profil: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OpenEditModal()
+    {
+        isEditModalOpen = true;
+    }
+
+    private async Task HandleDeleteEducation(Guid id)
+    {
+        var ok = await ProfileClient.DeleteEducationAsync(id);
+        if (ok)
+        {
+            ToastService.ShowSuccess("Riwayat pendidikan berhasil dihapus.");
+            await LoadProfileAsync();
+        }
+        else
+        {
+            ToastService.ShowError("Gagal menghapus riwayat pendidikan.");
+        }
+    }
+
+    private async Task HandleDeleteExperience(Guid id)
+    {
+        var ok = await ProfileClient.DeleteExperienceAsync(id);
+        if (ok)
+        {
+            ToastService.ShowSuccess("Pengalaman riset berhasil dihapus.");
+            await LoadProfileAsync();
+        }
+        else
+        {
+            ToastService.ShowError("Gagal menghapus pengalaman riset.");
+        }
+    }
+
+    private async Task HandleAddSkill(string skill)
+    {
+        var res = await ProfileClient.AddSkillAsync(skill);
+        if (res != null)
+        {
+            ToastService.ShowSuccess($"Keahlian '{skill}' berhasil ditambahkan.");
+            await LoadProfileAsync();
+        }
+        else
+        {
+            ToastService.ShowError("Gagal menambahkan keahlian.");
+        }
+    }
+
+    private async Task HandleDeleteSkill(Guid id)
+    {
+        var ok = await ProfileClient.DeleteSkillAsync(id);
+        if (ok)
+        {
+            ToastService.ShowSuccess("Keahlian berhasil dihapus.");
+            await LoadProfileAsync();
+        }
+        else
+        {
+            ToastService.ShowError("Gagal menghapus keahlian.");
+        }
+    }
+}

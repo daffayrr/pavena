@@ -1,0 +1,105 @@
+@namespace Pavena.Web.Components.Profile
+@using Pavena.Application.Identity.DTOs
+@using Pavena.Web.Components.UI
+
+<div class="pv-profile-section">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--pv-space-4);">
+        <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-text); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-primary);">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+            <span>Pengalaman Riset & Posisi Akademik</span>
+        </h3>
+
+        @if (IsOwner)
+        {
+            <PvButton Variant="ghost" Size="sm" OnClick="OnAddClicked">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Tambah Pengalaman</span>
+            </PvButton>
+        }
+    </div>
+
+    @if (Experiences == null || !Experiences.Any())
+    {
+        <PvEmptyState Title="Belum ada pengalaman riset"
+                      Description="Jabatan laboratorium, posisi pengajar, atau keterlibatan proyek penelitian akan ditampilkan di sini." />
+    }
+    else
+    {
+        <div class="pv-academic-list">
+            @foreach (var exp in Experiences)
+            {
+                <div class="pv-academic-item">
+                    <div class="pv-academic-item-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <div class="pv-academic-item-content">
+                        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
+                            <div>
+                                <div class="pv-academic-item-title">@exp.Title</div>
+                                <div class="pv-academic-item-subtitle">
+                                    @exp.CompanyOrInstitution
+                                    @if (!string.IsNullOrWhiteSpace(exp.Location))
+                                    {
+                                        <span> · @exp.Location</span>
+                                    }
+                                </div>
+                            </div>
+
+                            @if (IsOwner)
+                            {
+                                <button type="button"
+                                        class="pv-btn pv-btn-ghost pv-btn-sm pv-btn-icon is-danger"
+                                        title="Hapus pengalaman riset"
+                                        @onclick="() => HandleDelete(exp.Id)">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                            }
+                        </div>
+
+                        <div class="pv-academic-item-meta">
+                            <span>
+                                @(exp.StartDate.ToString("MMM yyyy")) –
+                                @(exp.IsCurrent ? "Sekarang" : (exp.EndDate?.ToString("MMM yyyy") ?? "—"))
+                            </span>
+                            @if (exp.IsCurrent)
+                            {
+                                <PvBadge Variant="primary">Posisi Aktif</PvBadge>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(exp.Description))
+                        {
+                            <div class="pv-academic-item-desc">
+                                @exp.Description
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<UserExperienceDto>? Experiences { get; set; }
+    [Parameter] public bool IsOwner { get; set; }
+    [Parameter] public EventCallback OnAddClicked { get; set; }
+    [Parameter] public EventCallback<Guid> OnDeleteExperience { get; set; }
+
+    private async Task HandleDelete(Guid id)
+    {
+        await OnDeleteExperience.InvokeAsync(id);
+    }
+}
