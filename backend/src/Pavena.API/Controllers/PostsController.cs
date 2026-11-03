@@ -41,6 +41,17 @@ public class PostsController : ControllerBase
         return CreatedAtAction(nameof(GetPostById), new { postId = post.Id }, post);
     }
 
+    [HttpGet("mine")]
+    public async Task<IActionResult> GetMyPosts(CancellationToken cancellationToken)
+    {
+        var callerUserId = GetCurrentUserId();
+        if (!callerUserId.HasValue)
+            return Unauthorized();
+
+        var posts = await _postService.GetUserPostsAsync(callerUserId.Value, callerUserId.Value, cancellationToken);
+        return Ok(posts);
+    }
+
     [HttpGet("{postId:guid}")]
     public async Task<IActionResult> GetPostById(Guid postId, CancellationToken cancellationToken)
     {

@@ -1,0 +1,260 @@
+@namespace Pavena.Web.Components.Posts
+@inject IAcademicProfileClient ProfileClient
+@inject IScholarSessionService SessionService
+@inject IToastService ToastService
+
+<div class="pv-composer">
+    <!-- Top row: Author identity, category selector, visibility selector -->
+    <div class="pv-composer-top">
+        <div class="pv-composer-author-info">
+            <PvAvatar Name="@SessionService.CurrentDisplayName" Size="md" Status="online" />
+            <div class="pv-composer-author-details">
+                <span class="pv-composer-author-name">@SessionService.CurrentDisplayName</span>
+                <span class="pv-composer-author-subtitle">Author: @SessionService.CurrentUsername</span>
+            </div>
+        </div>
+
+        <div class="pv-composer-controls">
+            <PostVisibilitySelector @bind-SelectedVisibility="_visibility" />
+        </div>
+    </div>
+
+    <!-- Category selector row -->
+    <div>
+        <div style="font-size: 0.75rem; font-weight: 600; color: var(--pv-color-text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">
+            Kategori Konten Akademik
+        </div>
+        <PostCategorySelector @bind-SelectedCategory="_category" />
+    </div>
+
+    <!-- Live Preview or Textarea Switcher -->
+    @if (_showPreview)
+    {
+        <div class="pv-composer-preview-box">
+            <div class="pv-composer-preview-header">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>Pratinjau Publikasi Ilmiah (@_visibility)</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_category))
+            {
+                <div style="margin-bottom: 8px;">
+                    <span class="pv-category-badge" data-cat="@_category">
+                        @_category
+                    </span>
+                </div>
+            }
+            <div class="pv-composer-preview-body">
+                @(string.IsNullOrWhiteSpace(_content) ? "(Belum ada konten untuk ditampilkan)" : _content)
+            </div>
+            @if (_attachments.Any())
+            {
+                <div style="margin-top: 12px; font-size: 0.8125rem; color: var(--pv-color-text-muted);">
+                    <strong>@_attachments.Count Lampiran Berkas:</strong>
+                    @string.Join(", ", _attachments.Select(a => a.FileName))
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <!-- Textarea -->
+        <textarea class="pv-composer-textarea"
+                  rows="5"
+                  maxlength="@MaxContentLength"
+                  placeholder="Deskripsikan hipotesis, temuan eksperimen, tinjauan literatur, atau pembaruan proyek riset Anda..."
+                  @bind="_content"
+                  @bind:event="oninput"></textarea>
+    }
+
+    <!-- Meta bar: Character count & validation hints -->
+    <div class="pv-composer-meta-bar">
+        <div>
+            @if (_attachments.Any())
+            {
+                <span>📎 @_attachments.Count berkas terlampir</span>
+            }
+            else
+            {
+                <span>💡 Gunakan bahasa ilmiah yang lugas dan berintegritas.</span>
+            }
+        </div>
+        <div style="font-variant-numeric: tabular-nums; @(IsContentTooLong ? "color: var(--pv-color-danger); font-weight: 700;" : "")">
+            @RemainingChars karakter tersisa
+        </div>
+    </div>
+
+    <!-- Optional Attachment Uploader Drawer -->
+    @if (_showAttachments)
+    {
+        <PostAttachmentUploader @bind-Attachments="_attachments" />
+    }
+
+    <!-- Bottom Actions row -->
+    <div class="pv-composer-bottom">
+        <div class="pv-composer-left-actions">
+            <PvButton Variant="ghost" Size="sm" OnClick="() => _showAttachments = !_showAttachments">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                </svg>
+                <span>@(_showAttachments ? "Tutup Lampiran" : "Lampiran Berkas")</span>
+            </PvButton>
+
+            <PvButton Variant="ghost" Size="sm" OnClick="() => _showPreview = !_showPreview">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>@(_showPreview ? "Kembali Menulis" : "Pratinjau")</span>
+            </PvButton>
+        </div>
+
+        <div class="pv-composer-right-actions">
+            @if (OnCancel.HasDelegate)
+            {
+                <PvButton Variant="outline" Size="sm" OnClick="HandleCancel" Disabled="_isSubmitting">
+                    Batal
+                </PvButton>
+            }
+
+            <PvButton Variant="secondary" Size="sm" OnClick="SaveDraftAsync" Disabled="@(_isSubmitting || string.IsNullOrWhiteSpace(_content))">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                <span>Simpan Draf</span>
+            </PvButton>
+
+            <PvButton Variant="primary" Size="sm" OnClick="PublishNowAsync" Disabled="@(_isSubmitting || string.IsNullOrWhiteSpace(_content) || IsContentTooLong)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+                <span>Publikasikan</span>
+            </PvButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback<PostDto> OnPostCreated { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private const int MaxContentLength = 5000;
+    private string _content = string.Empty;
+    private string _visibility = "Public";
+    private string? _category = "Research Update";
+    private List<CreateAttachmentRequest> _attachments = new();
+    private bool _showAttachments;
+    private bool _showPreview;
+    private bool _isSubmitting;
+
+    private int RemainingChars => MaxContentLength - (_content?.Length ?? 0);
+    private bool IsContentTooLong => (_content?.Length ?? 0) > MaxContentLength;
+
+    private string PrepareContentWithCategory()
+    {
+        var trimmed = _content?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(_category) && !trimmed.StartsWith($"[{_category}]", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"[{_category}]\n\n{trimmed}";
+        }
+        return trimmed;
+    }
+
+    private async Task SaveDraftAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_content))
+        {
+            ToastService.Warning("Isi draf tidak boleh kosong.");
+            return;
+        }
+
+        _isSubmitting = true;
+        try
+        {
+            var contentToSave = PrepareContentWithCategory();
+            var req = new CreatePostRequest(
+                contentToSave,
+                _visibility,
+                PublishImmediately: false,
+                Attachments: _attachments.Any() ? _attachments : null
+            );
+
+            var post = await ProfileClient.CreatePostAsync(req);
+            if (post != null)
+            {
+                ToastService.Success("Draf post ilmiah berhasil disimpan.");
+                ResetComposer();
+                await OnPostCreated.InvokeAsync(post);
+            }
+            else
+            {
+                ToastService.Error("Gagal menyimpan draf post. Periksa koneksi.");
+            }
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task PublishNowAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_content))
+        {
+            ToastService.Warning("Konten post yang akan dipublikasikan tidak boleh kosong.");
+            return;
+        }
+
+        _isSubmitting = true;
+        try
+        {
+            var contentToSave = PrepareContentWithCategory();
+            var req = new CreatePostRequest(
+                contentToSave,
+                _visibility,
+                PublishImmediately: true,
+                Attachments: _attachments.Any() ? _attachments : null
+            );
+
+            var post = await ProfileClient.CreatePostAsync(req);
+            if (post != null)
+            {
+                ToastService.Success("Post ilmiah berhasil dipublikasikan.");
+                ResetComposer();
+                await OnPostCreated.InvokeAsync(post);
+            }
+            else
+            {
+                ToastService.Error("Gagal mempublikasikan post. Periksa koneksi.");
+            }
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void ResetComposer()
+    {
+        _content = string.Empty;
+        _category = "Research Update";
+        _visibility = "Public";
+        _attachments = new();
+        _showAttachments = false;
+        _showPreview = false;
+    }
+
+    private async Task HandleCancel()
+    {
+        ResetComposer();
+        if (OnCancel.HasDelegate)
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+}

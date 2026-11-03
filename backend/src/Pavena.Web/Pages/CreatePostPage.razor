@@ -1,0 +1,82 @@
+@page "/posts/create"
+@inject NavigationManager Navigation
+@inject IToastService ToastService
+
+<PageTitle>Pavena — Tulis Catatan Ilmiah Baru</PageTitle>
+
+<div class="pv-container" style="max-width: 900px; padding-top: var(--pv-space-6); padding-bottom: var(--pv-space-8);">
+    <!-- Breadcrumb & Header -->
+    <div style="margin-bottom: var(--pv-space-5);">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; color: var(--pv-color-text-muted); margin-bottom: 6px;">
+            <a href="/" style="color: var(--pv-color-text-muted); text-decoration: none;">Beranda</a>
+            <span>/</span>
+            <a href="/posts/mine" style="color: var(--pv-color-text-muted); text-decoration: none;">Publikasi Saya</a>
+            <span>/</span>
+            <span style="color: var(--pv-color-text); font-weight: 500;">Tulis Post</span>
+        </div>
+        <h1 style="font-size: 1.5rem; font-weight: 700; color: var(--pv-color-text); margin: 0 0 4px;">
+            Tulis Catatan Ilmiah & Temuan Riset
+        </h1>
+        <p style="font-size: 0.875rem; color: var(--pv-color-text-muted); margin: 0;">
+            Bagikan temuan eksperimen, hipotesis awal, atau diskusi ilmiah kepada komunitas akademik global.
+        </p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 280px; gap: 1.5rem; align-items: start;">
+        <!-- Left: Composer -->
+        <div>
+            <PostComposer OnPostCreated="HandlePostCreated" OnCancel="HandleCancel" />
+        </div>
+
+        <!-- Right: Academic Integrity & Best Practices Guide -->
+        <aside style="display: flex; flex-direction: column; gap: 1rem;">
+            <div class="pv-card" style="padding: 1.25rem;">
+                <h3 style="font-size: 0.9375rem; font-weight: 600; color: var(--pv-color-text); margin: 0 0 0.75rem; display: flex; align-items: center; gap: 6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-secondary);">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    <span>Panduan Integritas Riset</span>
+                </h3>
+                <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.8125rem; color: var(--pv-color-text-muted); line-height: 1.6; display: flex; flex-direction: column; gap: 6px;">
+                    <li><strong>Reproducibility:</strong> Sertakan parameter metodologis penting atau dataset.</li>
+                    <li><strong>Atribusi Sitasi:</strong> Hormati kepemilikan intelektual peneliti lain.</li>
+                    <li><strong>Pre-print:</strong> Tautkan DOI atau repositori terbuka bila ada.</li>
+                    <li><strong>Visibilitas Tepat:</strong> Gunakan opsi <em>Kolega</em> untuk data lab awal yang belum dipublikasikan.</li>
+                </ul>
+            </div>
+
+            <div class="pv-card" style="padding: 1.25rem; background-color: rgba(24, 124, 120, 0.05); border-color: rgba(24, 124, 120, 0.2);">
+                <div style="font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-secondary); margin-bottom: 4px;">
+                    Draf Tersimpan Aman
+                </div>
+                <div style="font-size: 0.75rem; color: var(--pv-color-text-muted); line-height: 1.5;">
+                    Anda dapat menyimpan artikel sebagai draf dan melanjutkannya kapan saja melalui menu <em>Publikasi Saya</em>.
+                </div>
+                <div style="margin-top: 10px;">
+                    <a href="/posts/mine" class="pv-btn pv-btn-ghost pv-btn-sm" style="padding-left: 0; color: var(--pv-color-secondary);">
+                        Lihat Draf Saya →
+                    </a>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+@code {
+    private void HandlePostCreated(PostDto post)
+    {
+        if (post.Status == "Published")
+        {
+            Navigation.NavigateTo($"/posts/{post.Id}");
+        }
+        else
+        {
+            Navigation.NavigateTo("/posts/mine");
+        }
+    }
+
+    private void HandleCancel()
+    {
+        Navigation.NavigateTo("/posts/mine");
+    }
+}

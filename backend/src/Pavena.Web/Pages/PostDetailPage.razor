@@ -1,0 +1,98 @@
+@page "/posts/{postId:guid}"
+@inject IAcademicProfileClient ProfileClient
+@inject NavigationManager Navigation
+@inject IToastService ToastService
+
+<PageTitle>Pavena — @(_post?.AuthorDisplayName ?? "Post Ilmiah")</PageTitle>
+
+<div class="pv-container" style="max-width: 860px; padding-top: var(--pv-space-6); padding-bottom: var(--pv-space-8);">
+    <!-- Breadcrumb & Back button -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--pv-space-5);">
+        <button type="button" class="pv-btn pv-btn-ghost pv-btn-sm" @onclick="NavigateBack">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Kembali</span>
+        </button>
+
+        <div style="display: flex; gap: 8px;">
+            <a href="/posts/create" class="pv-btn pv-btn-outline pv-btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Tulis Post</span>
+            </a>
+            <a href="/posts/mine" class="pv-btn pv-btn-ghost pv-btn-sm">
+                Publikasi Saya
+            </a>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <PvLoading Message="Memuat rincian artikel ilmiah..." />
+    }
+    else if (_notFound || _post == null)
+    {
+        <PvErrorState Title="Post Tidak Ditemukan atau Akses Ditolak"
+                      Message="Konten ilmiah ini mungkin bersifat privat, telah dihapus oleh penulisnya, atau Anda tidak memiliki izin untuk melihatnya."
+                      ActionText="Kembali ke Linimasa"
+                      OnAction='@(() => Navigation.NavigateTo("/"))' />
+    }
+    else
+    {
+        <PostDetail Post="@_post" OnPostUpdated="HandlePostUpdated" OnPostDeleted="HandlePostDeleted" />
+    }
+</div>
+
+@code {
+    [Parameter] public Guid PostId { get; set; }
+
+    private PostDto? _post;
+    private bool _isLoading = true;
+    private bool _notFound;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadPostAsync();
+    }
+
+    private async Task LoadPostAsync()
+    {
+        _isLoading = true;
+        _notFound = false;
+        try
+        {
+            _post = await ProfileClient.GetPostByIdAsync(PostId);
+            if (_post == null)
+            {
+                _notFound = true;
+            }
+        }
+        catch
+        {
+            _notFound = true;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void HandlePostUpdated(PostDto updated)
+    {
+        _post = updated;
+    }
+
+    private void HandlePostDeleted(Guid deletedId)
+    {
+        Navigation.NavigateTo("/posts/mine");
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/posts/mine");
+    }
+}

@@ -1,0 +1,156 @@
+@page "/posts/mine"
+@inject IAcademicProfileClient ProfileClient
+@inject IScholarSessionService SessionService
+@inject NavigationManager Navigation
+@inject IToastService ToastService
+
+<PageTitle>Pavena — Publikasi & Draf Saya</PageTitle>
+
+<div class="pv-container" style="max-width: 920px; padding-top: var(--pv-space-6); padding-bottom: var(--pv-space-8);">
+    <!-- Page Header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--pv-space-5); flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1 style="font-size: 1.5rem; font-weight: 700; color: var(--pv-color-text); margin: 0 0 4px;">
+                Publikasi & Draf Saya
+            </h1>
+            <p style="font-size: 0.875rem; color: var(--pv-color-text-muted); margin: 0;">
+                Kelola artikel riset, draf eksperimen awal, dan arsip publikasi ilmiah Anda.
+            </p>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+            <a href="/posts/create" class="pv-btn pv-btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Tulis Post Baru</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabs Filter -->
+    <div style="margin-bottom: var(--pv-space-5);">
+        <PvTabs Tabs="@_tabs" ActiveTab="@_activeTab" ActiveTabChanged="HandleTabChanged" AriaLabel="Filter Status Post" />
+    </div>
+
+    <!-- Posts Content List -->
+    @if (_isLoading)
+    {
+        <PvLoading Message="Memuat publikasi Anda..." />
+    }
+    else if (!FilteredPosts.Any())
+    {
+        <PvEmptyState Title="@GetEmptyTitle()"
+                      Message="@GetEmptyMessage()"
+                      ActionText="Mulai Menulis"
+                      OnAction='@(() => Navigation.NavigateTo("/posts/create"))' />
+    }
+    else
+    {
+        <div style="display: flex; flex-direction: column; gap: var(--pv-space-4);">
+            @foreach (var post in FilteredPosts)
+            {
+                <PostCard @key="post.Id"
+                          Post="@post"
+                          ShowStatusBadge="true"
+                          OnPostUpdated="HandlePostUpdated"
+                          OnPostDeleted="HandlePostDeleted" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<PostDto> _posts = new();
+    private bool _isLoading = true;
+    private string _activeTab = "all";
+    private IReadOnlyList<PvTabs.TabItem> _tabs = Array.Empty<PvTabs.TabItem>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMyPostsAsync();
+    }
+
+    private async Task LoadMyPostsAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var res = await ProfileClient.GetMyPostsAsync();
+            _posts = res.ToList();
+            BuildTabs();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void BuildTabs()
+    {
+        var allCount = _posts.Count;
+        var publishedCount = _posts.Count(p => p.Status == "Published");
+        var draftCount = _posts.Count(p => p.Status == "Draft");
+        var archivedCount = _posts.Count(p => p.Status == "Archived");
+
+        _tabs = new List<PvTabs.TabItem>
+        {
+            new("all", "Semua", Badge: allCount > 0 ? allCount.ToString() : null),
+            new("published", "Terbit", Badge: publishedCount > 0 ? publishedCount.ToString() : null),
+            new("draft", "Draf", Badge: draftCount > 0 ? draftCount.ToString() : null),
+            new("archived", "Arsip", Badge: archivedCount > 0 ? archivedCount.ToString() : null)
+        };
+    }
+
+    private IEnumerable<PostDto> FilteredPosts => _activeTab switch
+    {
+        "published" => _posts.Where(p => p.Status == "Published"),
+        "draft" => _posts.Where(p => p.Status == "Draft"),
+        "archived" => _posts.Where(p => p.Status == "Archived"),
+        _ => _posts
+    };
+
+    private void HandleTabChanged(string newTab)
+    {
+        _activeTab = newTab;
+    }
+
+    private void HandlePostUpdated(PostDto updated)
+    {
+        var idx = _posts.FindIndex(p => p.Id == updated.Id);
+        if (idx >= 0)
+        {
+            _posts[idx] = updated;
+        }
+        else
+        {
+            _posts.Insert(0, updated);
+        }
+        BuildTabs();
+        StateHasChanged();
+    }
+
+    private void HandlePostDeleted(Guid deletedId)
+    {
+        _posts.RemoveAll(p => p.Id == deletedId);
+        BuildTabs();
+        StateHasChanged();
+    }
+
+    private string GetEmptyTitle() => _activeTab switch
+    {
+        "published" => "Belum Ada Post yang Diterbitkan",
+        "draft" => "Tidak Ada Draf Tersimpan",
+        "archived" => "Tidak Ada Arsip Post",
+        _ => "Belum Ada Catatan Riset"
+    };
+
+    private string GetEmptyMessage() => _activeTab switch
+    {
+        "published" => "Anda belum menerbitkan postingan ilmiah ke linimasa publik atau kolega.",
+        "draft" => "Semua ide dan eksperimen telah diterbitkan atau belum mulai ditulis.",
+        "archived" => "Post yang diarsipkan dari linimasa publik akan tersimpan di sini.",
+        _ => "Mulai dokumentasikan metodologi, temuan eksperimen, atau publikasi ilmiah Anda."
+    };
+}

@@ -17,6 +17,15 @@ public interface IAcademicProfileClient
     Task<bool> DeleteSkillAsync(Guid id, CancellationToken cancellationToken = default);
     Task<List<PostDto>> GetUserPostsAsync(Guid userId, CancellationToken cancellationToken = default);
 
+    // Posts & Content Management
+    Task<PostDto?> CreatePostAsync(CreatePostRequest request, CancellationToken cancellationToken = default);
+    Task<PostDto?> GetPostByIdAsync(Guid postId, CancellationToken cancellationToken = default);
+    Task<PostDto?> UpdatePostAsync(Guid postId, UpdatePostRequest request, CancellationToken cancellationToken = default);
+    Task<bool> DeletePostAsync(Guid postId, CancellationToken cancellationToken = default);
+    Task<PostDto?> PublishPostAsync(Guid postId, CancellationToken cancellationToken = default);
+    Task<PostDto?> ArchivePostAsync(Guid postId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PostDto>> GetMyPostsAsync(CancellationToken cancellationToken = default);
+
     // Researcher Discovery
     Task<IReadOnlyList<ResearcherDiscoveryDto>> GetDiscoverResearchersAsync(
         string? query = null,

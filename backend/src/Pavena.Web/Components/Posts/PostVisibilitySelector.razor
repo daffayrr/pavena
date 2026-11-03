@@ -1,0 +1,26 @@
+@namespace Pavena.Web.Components.Posts
+
+<div class="pv-visibility-selector-wrapper">
+    <select class="pv-visibility-select"
+            value="@SelectedVisibility"
+            @onchange="OnVisibilityChanged"
+            disabled="@Disabled"
+            aria-label="Tingkat Visibilitas Post">
+        <option value="Public">🌐 Publik (Seluruh Komunitas)</option>
+        <option value="Connections">👥 Kolega Terhubung Saja</option>
+        <option value="OnlyMe">🔒 Hanya Saya (Privat)</option>
+    </select>
+</div>
+
+@code {
+    [Parameter] public string SelectedVisibility { get; set; } = "Public";
+    [Parameter] public EventCallback<string> SelectedVisibilityChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    private async Task OnVisibilityChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString() ?? "Public";
+        SelectedVisibility = val;
+        await SelectedVisibilityChanged.InvokeAsync(val);
+    }
+}

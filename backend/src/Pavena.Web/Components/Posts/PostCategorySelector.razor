@@ -1,0 +1,48 @@
+@namespace Pavena.Web.Components.Posts
+
+<div class="pv-category-selector @(Compact ? "is-compact" : "")" role="group" aria-label="Kategori Konten Akademik">
+    @foreach (var cat in Categories)
+    {
+        var isSelected = string.Equals(SelectedCategory, cat.Name, StringComparison.OrdinalIgnoreCase);
+        <button type="button"
+                class="pv-category-pill @(isSelected ? "is-active" : "")"
+                @onclick="() => SelectCategory(cat.Name)"
+                title="@cat.Description"
+                aria-pressed="@isSelected">
+            <span>@cat.Icon</span>
+            <span>@cat.Name</span>
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter] public string? SelectedCategory { get; set; } = "Research Update";
+    [Parameter] public EventCallback<string?> SelectedCategoryChanged { get; set; }
+    [Parameter] public bool Compact { get; set; }
+
+    public record AcademicCategory(string Name, string Icon, string Description);
+
+    public static readonly IReadOnlyList<AcademicCategory> Categories = new List<AcademicCategory>
+    {
+        new("Research Update", "🔬", "Pembaruan progres eksperimen, laboratorium, atau metodologi."),
+        new("Research Finding", "💡", "Temuan ilmiah baru, hipotesis teruji, atau penemuan teoritis."),
+        new("Academic Discussion", "💬", "Diskusikan pertanyaan ilmiah terbuka, metodologi, atau literatur."),
+        new("Publication", "📄", "Pengumuman artikel jurnal, pre-print arXiv/bioRxiv, atau buku."),
+        new("Collaboration Opportunity", "🤝", "Ajakan kolaborasi antar-laboratorium, universitas, atau peneliti."),
+        new("Conference & Event", "🏛️", "Simposium, konferensi internasional, seminar ilmiah, workshop."),
+        new("General Academic", "🎓", "Catatan umum akademisi, kebijakan riset, atau wawasan ilmiah.")
+    };
+
+    private async Task SelectCategory(string category)
+    {
+        if (SelectedCategory == category)
+        {
+            SelectedCategory = null;
+        }
+        else
+        {
+            SelectedCategory = category;
+        }
+        await SelectedCategoryChanged.InvokeAsync(SelectedCategory);
+    }
+}

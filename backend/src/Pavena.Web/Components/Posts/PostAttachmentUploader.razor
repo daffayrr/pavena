@@ -1,0 +1,134 @@
+@namespace Pavena.Web.Components.Posts
+@inject IToastService ToastService
+
+<div class="pv-attachment-uploader">
+    <div class="pv-storage-notice">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; color: var(--pv-color-secondary);">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <div>
+            <strong>Pemberitahuan Penyimpanan Objek:</strong> Lampiran divalidasi integritas metadata & tipe MIME akademik (maks. 25 MB/file, maks. 10 berkas). Integrasi Object Storage (S3/MinIO) terisolasi akan aktif pada rilis infrastruktur berikutnya; berkas biner tidak disimpan langsung dalam basis data transaksional.
+        </div>
+    </div>
+
+    @if (Attachments.Count < MaxFiles)
+    {
+        <div class="pv-attachment-dropzone" @onclick="TriggerFileInput">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-secondary); margin-bottom: 6px;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <div style="font-weight: 600; font-size: 0.875rem; color: var(--pv-color-text);">
+                Pilih atau unggah berkas ilmiah & data riset
+            </div>
+            <div style="font-size: 0.75rem; color: var(--pv-color-text-muted); margin-top: 2px;">
+                Mendukung PDF, LaTeX (.tex), CSV, Excel, DOCX, ZIP, PNG, JPG (Maks. 25 MB)
+            </div>
+            <InputFile id="pv-file-input" OnChange="HandleFileSelected" style="display: none;" multiple />
+        </div>
+    }
+
+    @if (Attachments.Any())
+    {
+        <div class="pv-attachment-list">
+            @for (int i = 0; i < Attachments.Count; i++)
+            {
+                var index = i;
+                var file = Attachments[i];
+                <div class="pv-attachment-item">
+                    <div class="pv-attachment-info">
+                        <span style="font-size: 1.1rem;">@GetFileIcon(file.FileName)</span>
+                        <div>
+                            <div class="pv-attachment-name">@file.FileName</div>
+                            <div class="pv-attachment-size">@FormatBytes(file.FileSizeBytes) • @file.ContentType</div>
+                        </div>
+                    </div>
+                    <button type="button" class="pv-btn pv-btn-ghost pv-btn-sm" @onclick="() => RemoveAttachment(index)" aria-label="Hapus lampiran" title="Hapus lampiran">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-danger);">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<CreateAttachmentRequest> Attachments { get; set; } = new();
+    [Parameter] public EventCallback<List<CreateAttachmentRequest>> AttachmentsChanged { get; set; }
+    [Parameter] public int MaxFiles { get; set; } = 10;
+    [Parameter] public long MaxFileSizeBytes { get; set; } = 25 * 1024 * 1024; // 25 MB
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
+    private async Task TriggerFileInput()
+    {
+        await JS.InvokeVoidAsync("document.getElementById('pv-file-input').click");
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var files = e.GetMultipleFiles(MaxFiles);
+        foreach (var file in files)
+        {
+            if (Attachments.Count >= MaxFiles)
+            {
+                ToastService.Warning($"Maksimal lampiran adalah {MaxFiles} berkas.");
+                break;
+            }
+
+            if (file.Size > MaxFileSizeBytes)
+            {
+                ToastService.Error($"Berkas '{file.Name}' melebihi batas ukuran 25 MB ({FormatBytes(file.Size)}).");
+                continue;
+            }
+
+            var storageKey = $"storage/posts/{Guid.NewGuid():N}_{file.Name}";
+            Attachments.Add(new CreateAttachmentRequest(
+                file.Name,
+                string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                file.Size,
+                storageKey
+            ));
+        }
+
+        await AttachmentsChanged.InvokeAsync(Attachments);
+    }
+
+    private async Task RemoveAttachment(int index)
+    {
+        if (index >= 0 && index < Attachments.Count)
+        {
+            Attachments.RemoveAt(index);
+            await AttachmentsChanged.InvokeAsync(Attachments);
+        }
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F2} MB";
+    }
+
+    private static string GetFileIcon(string fileName)
+    {
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        return ext switch
+        {
+            ".pdf" => "📄",
+            ".tex" => "📜",
+            ".csv" => "📊",
+            ".xlsx" or ".xls" => "📈",
+            ".docx" or ".doc" => "📝",
+            ".png" or ".jpg" or ".jpeg" => "🖼️",
+            ".zip" or ".tar" or ".gz" => "📦",
+            _ => "📎"
+        };
+    }
+}

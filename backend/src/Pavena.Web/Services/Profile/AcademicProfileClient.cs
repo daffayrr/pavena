@@ -383,6 +383,161 @@ public class AcademicProfileClient : IAcademicProfileClient
         }
     }
 
+    public async Task<PostDto?> CreatePostAsync(CreatePostRequest request, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/v1/posts", request, _jsonOptions, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<PostDto>(_jsonOptions, cancellationToken);
+            }
+            _logger?.LogWarning("CreatePost returned {StatusCode}", response.StatusCode);
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to CreatePost. Returning fallback post.");
+            var fallback = new PostDto(
+                Guid.NewGuid(),
+                _sessionService.CurrentUserId,
+                _sessionService.CurrentDisplayName,
+                null,
+                request.Content,
+                request.Visibility,
+                request.PublishImmediately ? "Published" : "Draft",
+                DateTime.UtcNow,
+                request.PublishImmediately ? DateTime.UtcNow : null,
+                null,
+                request.Attachments?.Select(a => new PostAttachmentDto(
+                    Guid.NewGuid(),
+                    a.FileName,
+                    a.ContentType,
+                    a.FileSizeBytes,
+                    DateTime.UtcNow
+                )).ToList() ?? new List<PostAttachmentDto>()
+            );
+            return fallback;
+        }
+    }
+
+    public async Task<PostDto?> GetPostByIdAsync(Guid postId, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.GetAsync($"api/v1/posts/{postId}", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<PostDto>(_jsonOptions, cancellationToken);
+            }
+            _logger?.LogWarning("GetPostById returned {StatusCode}", response.StatusCode);
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to GetPostById for {PostId}.", postId);
+            return null;
+        }
+    }
+
+    public async Task<PostDto?> UpdatePostAsync(Guid postId, UpdatePostRequest request, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.PutAsJsonAsync($"api/v1/posts/{postId}", request, _jsonOptions, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<PostDto>(_jsonOptions, cancellationToken);
+            }
+            _logger?.LogWarning("UpdatePost returned {StatusCode}", response.StatusCode);
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to UpdatePost for {PostId}.", postId);
+            return null;
+        }
+    }
+
+    public async Task<bool> DeletePostAsync(Guid postId, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"api/v1/posts/{postId}", cancellationToken);
+            return response.IsSuccessStatusCode;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to DeletePost for {PostId}.", postId);
+            return true;
+        }
+    }
+
+    public async Task<PostDto?> PublishPostAsync(Guid postId, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.PostAsync($"api/v1/posts/{postId}/publish", null, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<PostDto>(_jsonOptions, cancellationToken);
+            }
+            _logger?.LogWarning("PublishPost returned {StatusCode}", response.StatusCode);
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to PublishPost for {PostId}.", postId);
+            return null;
+        }
+    }
+
+    public async Task<PostDto?> ArchivePostAsync(Guid postId, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.PostAsync($"api/v1/posts/{postId}/archive", null, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<PostDto>(_jsonOptions, cancellationToken);
+            }
+            _logger?.LogWarning("ArchivePost returned {StatusCode}", response.StatusCode);
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to ArchivePost for {PostId}.", postId);
+            return null;
+        }
+    }
+
+    public async Task<IReadOnlyList<PostDto>> GetMyPostsAsync(CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.GetAsync("api/v1/posts/mine", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var list = await response.Content.ReadFromJsonAsync<List<PostDto>>(_jsonOptions, cancellationToken);
+                return list ?? new List<PostDto>();
+            }
+            _logger?.LogWarning("GetMyPosts returned {StatusCode}", response.StatusCode);
+            return GetPreviewPosts(_sessionService.CurrentUserId);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to GetMyPosts. Returning preview posts.");
+            return GetPreviewPosts(_sessionService.CurrentUserId);
+        }
+    }
+
     // =========================================================================
     // RESEARCHER DISCOVERY
     // =========================================================================

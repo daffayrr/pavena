@@ -1,0 +1,317 @@
+@namespace Pavena.Web.Components.Posts
+@inject IAcademicProfileClient ProfileClient
+@inject IScholarSessionService SessionService
+@inject IToastService ToastService
+@inject NavigationManager Navigation
+
+<div class="pv-card" style="padding: var(--pv-space-6);">
+    <!-- Status banner if Draft or Archived -->
+    @if (Post.Status == "Draft")
+    {
+        <div style="background-color: rgba(230, 126, 34, 0.1); border: 1px solid rgba(230, 126, 34, 0.3); border-radius: var(--pv-radius-md); padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; color: #D35400; font-size: 0.875rem; font-weight: 500;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span><strong>Draf Pribadi:</strong> Post ini belum dipublikasikan dan hanya dapat dilihat oleh Anda.</span>
+            </div>
+            @if (IsOwner)
+            {
+                <PvButton Variant="primary" Size="sm" OnClick="PublishDraftAsync" Disabled="_isBusy">
+                    Publikasikan Sekarang
+                </PvButton>
+            }
+        </div>
+    }
+    else if (Post.Status == "Archived")
+    {
+        <div style="background-color: rgba(127, 140, 141, 0.1); border: 1px solid rgba(127, 140, 141, 0.3); border-radius: var(--pv-radius-md); padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; color: #7F8C8D; font-size: 0.875rem;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                <rect x="1" y="3" width="22" height="5"></rect>
+                <line x1="10" y1="12" x2="14" y2="12"></line>
+            </svg>
+            <span><strong>Arsip Ilmiah:</strong> Post ini telah diarsipkan dan tidak ditampilkan pada linimasa publik komunitas.</span>
+        </div>
+    }
+
+    <!-- Author & Metadata header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 16px; border-bottom: 1px solid var(--pv-color-border); margin-bottom: 20px; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <a href="/profile/@Post.AuthorUserId" style="text-decoration: none;">
+                <PvAvatar Name="@Post.AuthorDisplayName" Url="@Post.AuthorAvatarUrl" Size="lg" Status="online" />
+            </a>
+            <div>
+                <a href="/profile/@Post.AuthorUserId" style="font-weight: 700; font-size: 1.125rem; color: var(--pv-color-text); text-decoration: none;">
+                    @Post.AuthorDisplayName
+                </a>
+                <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin-top: 2px;">
+                    Dipublikasikan pada @FormattedFullDate
+                    @if (Post.EditedAtUtc.HasValue)
+                    {
+                        <span title="Disunting pada @Post.EditedAtUtc.Value.ToString("f")"> • Disunting</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            @if (!string.IsNullOrWhiteSpace(_extractedCategory))
+            {
+                <span class="pv-category-badge" data-cat="@_extractedCategory">
+                    @_extractedCategory
+                </span>
+            }
+
+            <PvBadge Variant="neutral">
+                @GetVisibilityIcon(Post.Visibility) @Post.Visibility
+            </PvBadge>
+        </div>
+    </div>
+
+    <!-- Main Content Body -->
+    <div style="font-size: 1.0625rem; line-height: 1.75; color: var(--pv-color-text); white-space: pre-wrap; word-break: break-word; margin-bottom: 24px;">
+        @_cleanBody
+    </div>
+
+    <!-- Attachments Section -->
+    @if (Post.Attachments.Any())
+    {
+        <div style="margin-bottom: 28px; padding: 16px; background-color: var(--pv-color-surface-hover); border-radius: var(--pv-radius-md); border: 1px solid var(--pv-color-border);">
+            <div style="font-size: 0.8125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--pv-color-secondary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                </svg>
+                <span>Berkas Pendukung Riset & Lampiran (@Post.Attachments.Count)</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                @foreach (var att in Post.Attachments)
+                {
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background-color: var(--pv-color-surface); border: 1px solid var(--pv-color-border); border-radius: var(--pv-radius-md); font-size: 0.875rem;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.25rem;">@GetFileIcon(att.FileName)</span>
+                            <div>
+                                <div style="font-weight: 600; color: var(--pv-color-text);">@att.FileName</div>
+                                <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">@FormatBytes(att.FileSizeBytes) • @att.ContentType</div>
+                            </div>
+                        </div>
+                        <PvButton Variant="outline" Size="sm" OnClick='@(() => ToastService.Info($"Mengakses metadata berkas {att.FileName}."))'>
+                            Unduh
+                        </PvButton>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Bottom Actions / Owner Toolbar -->
+    <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--pv-color-border); padding-top: 16px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <PvButton Variant="outline" Size="sm" OnClick="HandleAppreciation">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                </svg>
+                <span>Apresiasi Ilmiah</span>
+            </PvButton>
+
+            <PvButton Variant="outline" Size="sm" OnClick="CopyCitation">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="18" cy="5" r="3"></circle>
+                    <circle cx="6" cy="12" r="3"></circle>
+                    <circle cx="18" cy="19" r="3"></circle>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+                <span>Sitasi Artikel</span>
+            </PvButton>
+        </div>
+
+        @if (IsOwner)
+        {
+            <div style="display: flex; align-items: center; gap: 8px;">
+                @if (Post.Status == "Published")
+                {
+                    <PvButton Variant="outline" Size="sm" OnClick="ArchivePostAsync" Disabled="_isBusy">
+                        Arsipkan
+                    </PvButton>
+                }
+
+                <PvButton Variant="secondary" Size="sm" OnClick="() => _showEditModal = true" Disabled="_isBusy">
+                    Sunting
+                </PvButton>
+
+                <PvButton Variant="danger" Size="sm" OnClick="DeletePostAsync" Disabled="_isBusy">
+                    Hapus
+                </PvButton>
+            </div>
+        }
+    </div>
+</div>
+
+@if (_showEditModal)
+{
+    <PostEditModal @bind-IsOpen="_showEditModal" Post="@Post" OnPostUpdated="HandlePostUpdated" />
+}
+
+@code {
+    [Parameter, EditorRequired] public PostDto Post { get; set; } = default!;
+    [Parameter] public EventCallback<PostDto> OnPostUpdated { get; set; }
+    [Parameter] public EventCallback<Guid> OnPostDeleted { get; set; }
+
+    private string? _extractedCategory;
+    private string _cleanBody = string.Empty;
+    private bool _showEditModal;
+    private bool _isBusy;
+
+    private bool IsOwner => SessionService.CurrentUserId == Post.AuthorUserId;
+
+    protected override void OnParametersSet()
+    {
+        ParseContent();
+    }
+
+    private void ParseContent()
+    {
+        if (string.IsNullOrWhiteSpace(Post.Content))
+        {
+            _cleanBody = string.Empty;
+            _extractedCategory = null;
+            return;
+        }
+
+        foreach (var cat in PostCategorySelector.Categories)
+        {
+            var prefix = $"[{cat.Name}]";
+            if (Post.Content.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                _extractedCategory = cat.Name;
+                _cleanBody = Post.Content[prefix.Length..].TrimStart();
+                return;
+            }
+        }
+
+        _extractedCategory = null;
+        _cleanBody = Post.Content;
+    }
+
+    private void HandleAppreciation()
+    {
+        ToastService.Success("Apresiasi ilmiah berhasil dicatat.");
+    }
+
+    private void CopyCitation()
+    {
+        var year = (Post.PublishedAtUtc ?? Post.CreatedAtUtc).Year;
+        var citation = $"{Post.AuthorDisplayName} ({year}). \"{(_cleanBody.Length > 80 ? _cleanBody[..80] + "..." : _cleanBody)}\". Pavena Academic Network. URI: /posts/{Post.Id}";
+        ToastService.Success("Sitasi artikel berhasil disalin.");
+    }
+
+    private async Task PublishDraftAsync()
+    {
+        _isBusy = true;
+        try
+        {
+            var res = await ProfileClient.PublishPostAsync(Post.Id);
+            if (res != null)
+            {
+                Post = res;
+                ParseContent();
+                ToastService.Success("Post ilmiah berhasil dipublikasikan!");
+                await OnPostUpdated.InvokeAsync(res);
+            }
+            else
+            {
+                ToastService.Error("Gagal mempublikasikan post.");
+            }
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task ArchivePostAsync()
+    {
+        _isBusy = true;
+        try
+        {
+            var res = await ProfileClient.ArchivePostAsync(Post.Id);
+            if (res != null)
+            {
+                Post = res;
+                ParseContent();
+                ToastService.Info("Post telah dipindahkan ke arsip.");
+                await OnPostUpdated.InvokeAsync(res);
+            }
+            else
+            {
+                ToastService.Error("Gagal mengarsipkan post.");
+            }
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task DeletePostAsync()
+    {
+        _isBusy = true;
+        try
+        {
+            var success = await ProfileClient.DeletePostAsync(Post.Id);
+            if (success)
+            {
+                ToastService.Success("Post berhasil dihapus.");
+                await OnPostDeleted.InvokeAsync(Post.Id);
+                Navigation.NavigateTo("/posts/mine");
+            }
+            else
+            {
+                ToastService.Error("Gagal menghapus post.");
+            }
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task HandlePostUpdated(PostDto updated)
+    {
+        Post = updated;
+        ParseContent();
+        await OnPostUpdated.InvokeAsync(updated);
+    }
+
+    private string FormattedFullDate => (Post.PublishedAtUtc ?? Post.CreatedAtUtc).ToString("f");
+
+    private static string GetVisibilityIcon(string visibility) => visibility switch
+    {
+        "Public" => "🌐",
+        "Connections" => "👥",
+        "OnlyMe" => "🔒",
+        _ => "🌐"
+    };
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F2} MB";
+    }
+
+    private static string GetFileIcon(string fileName)
+    {
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        return ext switch
+        {
+            ".pdf" => "📄",
+            ".tex" => "📜",
+            ".csv" => "📊",
+            _ => "📎"
+        };
+    }
+}

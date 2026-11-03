@@ -1,0 +1,138 @@
+@namespace Pavena.Web.Components.Posts
+@inject IAcademicProfileClient ProfileClient
+@inject IToastService ToastService
+
+<PvModal IsOpen="@IsOpen" IsOpenChanged="@IsOpenChanged" Title="Sunting Konten Ilmiah" MaxWidth="640px" OnClose="HandleClose">
+    <ChildContent>
+        <div style="display: flex; flex-direction: column; gap: var(--pv-space-4);">
+            <!-- Visibility & Status info -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <label style="font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text);">
+                    Visibilitas Post:
+                </label>
+                <PostVisibilitySelector @bind-SelectedVisibility="_visibility" />
+            </div>
+
+            <!-- Category selector -->
+            <div>
+                <label style="font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 6px; display: block;">
+                    Kategori Akademik:
+                </label>
+                <PostCategorySelector @bind-SelectedCategory="_category" />
+            </div>
+
+            <!-- Editor -->
+            <div>
+                <label style="font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 6px; display: block;">
+                    Konten Ilmiah:
+                </label>
+                <textarea class="pv-composer-textarea"
+                          rows="6"
+                          maxlength="5000"
+                          placeholder="Perbarui konten artikel atau diskusi ilmiah..."
+                          @bind="_content"
+                          @bind:event="oninput"></textarea>
+                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--pv-color-text-muted); margin-top: 4px;">
+                    <span>Pastikan integritas dan sitasi tetap terjaga.</span>
+                    <span>@(5000 - (_content?.Length ?? 0)) karakter tersisa</span>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; width: 100%;">
+            <PvButton Variant="outline" Size="sm" OnClick="HandleClose" Disabled="_isSaving">
+                Batal
+            </PvButton>
+            <PvButton Variant="primary" Size="sm" OnClick="SaveUpdateAsync" Disabled="@(_isSaving || string.IsNullOrWhiteSpace(_content))">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                <span>Simpan Perubahan</span>
+            </PvButton>
+        </div>
+    </Footer>
+</PvModal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public PostDto? Post { get; set; }
+    [Parameter] public EventCallback<PostDto> OnPostUpdated { get; set; }
+
+    private string _content = string.Empty;
+    private string _visibility = "Public";
+    private string? _category = "Research Update";
+    private bool _isSaving;
+
+    protected override void OnParametersSet()
+    {
+        if (Post != null)
+        {
+            _visibility = Post.Visibility;
+            ParseContentAndCategory(Post.Content);
+        }
+    }
+
+    private void ParseContentAndCategory(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            _content = string.Empty;
+            _category = "Research Update";
+            return;
+        }
+
+        foreach (var cat in PostCategorySelector.Categories)
+        {
+            var prefix = $"[{cat.Name}]";
+            if (raw.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                _category = cat.Name;
+                _content = raw[prefix.Length..].TrimStart();
+                return;
+            }
+        }
+
+        _category = "General Academic";
+        _content = raw;
+    }
+
+    private async Task SaveUpdateAsync()
+    {
+        if (Post == null || string.IsNullOrWhiteSpace(_content)) return;
+
+        _isSaving = true;
+        try
+        {
+            var contentToSave = !string.IsNullOrWhiteSpace(_category)
+                ? $"[{_category}]\n\n{_content.Trim()}"
+                : _content.Trim();
+
+            var req = new UpdatePostRequest(contentToSave, _visibility);
+            var updated = await ProfileClient.UpdatePostAsync(Post.Id, req);
+            if (updated != null)
+            {
+                ToastService.Success("Post ilmiah berhasil diperbarui.");
+                await OnPostUpdated.InvokeAsync(updated);
+                await HandleClose();
+            }
+            else
+            {
+                ToastService.Error("Gagal memperbarui post.");
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task HandleClose()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

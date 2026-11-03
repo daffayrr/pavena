@@ -1313,4 +1313,461 @@
   gap: 8px;
 }
 
+/* ============================================================================
+   MILESTONE K — POSTS & ACADEMIC CONTENT COMPOSER STYLES
+   ============================================================================ */
+
+/* 1. Academic Post Composer */
+.pv-composer {
+  background-color: var(--pv-color-surface);
+  border: 1px solid var(--pv-color-border);
+  border-radius: var(--pv-radius-lg);
+  box-shadow: var(--pv-shadow-sm);
+  padding: var(--pv-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pv-space-4);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pv-composer:focus-within {
+  border-color: var(--pv-color-primary-light, #8DB7EA);
+  box-shadow: 0 0 0 3px rgba(23, 54, 93, 0.08);
+}
+
+.pv-composer-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--pv-space-3);
+  padding-bottom: var(--pv-space-3);
+  border-bottom: 1px solid var(--pv-color-border);
+}
+
+.pv-composer-author-info {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-3);
+}
+
+.pv-composer-author-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.pv-composer-author-name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--pv-color-text);
+}
+
+.pv-composer-author-subtitle {
+  font-size: 0.75rem;
+  color: var(--pv-color-text-muted);
+}
+
+.pv-composer-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-2);
+  flex-wrap: wrap;
+}
+
+.pv-composer-textarea {
+  width: 100%;
+  border: 1px solid var(--pv-color-border);
+  border-radius: var(--pv-radius-md);
+  padding: var(--pv-space-3) var(--pv-space-4);
+  font-family: var(--pv-font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  background-color: var(--pv-color-surface);
+  color: var(--pv-color-text);
+  resize: vertical;
+  min-height: 140px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.pv-composer-textarea:focus {
+  border-color: var(--pv-color-secondary);
+}
+
+.pv-composer-textarea::placeholder {
+  color: var(--pv-color-text-subtle);
+  font-style: italic;
+}
+
+.pv-composer-meta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--pv-color-text-muted);
+}
+
+.pv-composer-preview-box {
+  background-color: var(--pv-color-surface-hover);
+  border: 1px dashed var(--pv-color-border);
+  border-radius: var(--pv-radius-md);
+  padding: var(--pv-space-4);
+}
+
+.pv-composer-preview-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--pv-color-secondary);
+  margin-bottom: var(--pv-space-2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pv-composer-preview-body {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--pv-color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.pv-composer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--pv-space-3);
+  padding-top: var(--pv-space-3);
+  border-top: 1px solid var(--pv-color-border);
+}
+
+.pv-composer-left-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-2);
+}
+
+.pv-composer-right-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-2);
+}
+
+/* 2. Category Selector & Badges */
+.pv-category-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pv-category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--pv-radius-full);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--pv-color-border);
+  background-color: var(--pv-color-surface);
+  color: var(--pv-color-text-muted);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.pv-category-pill:hover {
+  background-color: var(--pv-color-surface-hover);
+  color: var(--pv-color-text);
+  border-color: var(--pv-color-border-hover);
+}
+
+.pv-category-pill.is-active {
+  background-color: rgba(24, 124, 120, 0.12);
+  color: var(--pv-color-secondary);
+  border-color: var(--pv-color-secondary);
+  font-weight: 600;
+}
+
+.pv-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--pv-radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: rgba(24, 124, 120, 0.12);
+  color: var(--pv-color-secondary);
+  border: 1px solid rgba(24, 124, 120, 0.25);
+}
+
+/* Category Specific Colors */
+.pv-category-badge[data-cat="Finding"] {
+  background-color: rgba(23, 54, 93, 0.12);
+  color: var(--pv-color-primary);
+  border-color: rgba(23, 54, 93, 0.25);
+}
+
+.pv-category-badge[data-cat="Publication"] {
+  background-color: rgba(142, 68, 173, 0.12);
+  color: #8E44AD;
+  border-color: rgba(142, 68, 173, 0.25);
+}
+
+.pv-category-badge[data-cat="Collaboration"] {
+  background-color: rgba(230, 126, 34, 0.12);
+  color: #D35400;
+  border-color: rgba(230, 126, 34, 0.25);
+}
+
+/* 3. Visibility Selector */
+.pv-visibility-select {
+  padding: 5px 10px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--pv-color-text);
+  background-color: var(--pv-color-surface-hover);
+  border: 1px solid var(--pv-color-border);
+  border-radius: var(--pv-radius-md);
+  cursor: pointer;
+  outline: none;
+}
+
+.pv-visibility-select:focus {
+  border-color: var(--pv-color-primary);
+}
+
+/* 4. Attachment Uploader */
+.pv-attachment-uploader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pv-space-3);
+  padding: var(--pv-space-3);
+  background-color: var(--pv-color-surface-hover);
+  border-radius: var(--pv-radius-md);
+  border: 1px dashed var(--pv-color-border);
+}
+
+.pv-attachment-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--pv-space-4);
+  border: 2px dashed var(--pv-color-border);
+  border-radius: var(--pv-radius-md);
+  background-color: var(--pv-color-surface);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.pv-attachment-dropzone:hover {
+  border-color: var(--pv-color-secondary);
+  background-color: rgba(24, 124, 120, 0.04);
+}
+
+.pv-attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pv-attachment-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: var(--pv-color-surface);
+  border: 1px solid var(--pv-color-border);
+  border-radius: var(--pv-radius-md);
+  font-size: 0.8125rem;
+}
+
+.pv-attachment-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pv-attachment-name {
+  font-weight: 500;
+  color: var(--pv-color-text);
+}
+
+.pv-attachment-size {
+  color: var(--pv-color-text-muted);
+  font-size: 0.75rem;
+}
+
+.pv-storage-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: rgba(24, 124, 120, 0.08);
+  border-left: 3px solid var(--pv-color-secondary);
+  border-radius: 0 var(--pv-radius-sm) var(--pv-radius-sm) 0;
+  font-size: 0.75rem;
+  color: var(--pv-color-text-muted);
+  line-height: 1.4;
+}
+
+/* 5. Post Card & Post Detail */
+.pv-post-card {
+  background-color: var(--pv-color-surface);
+  border: 1px solid var(--pv-color-border);
+  border-radius: var(--pv-radius-lg);
+  box-shadow: var(--pv-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.pv-post-card:hover {
+  border-color: var(--pv-color-border-hover);
+  box-shadow: var(--pv-shadow-md);
+}
+
+.pv-post-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--pv-space-4) var(--pv-space-5);
+  border-bottom: 1px solid var(--pv-color-border-subtle, rgba(0, 0, 0, 0.04));
+  gap: var(--pv-space-3);
+}
+
+.pv-post-author-row {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-3);
+}
+
+.pv-post-author-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.pv-post-author-name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--pv-color-text);
+  text-decoration: none;
+}
+
+.pv-post-author-name:hover {
+  color: var(--pv-color-primary);
+}
+
+.pv-post-timestamp {
+  font-size: 0.75rem;
+  color: var(--pv-color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pv-post-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pv-post-body {
+  padding: var(--pv-space-4) var(--pv-space-5);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--pv-color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.pv-post-attachments-section {
+  padding: 0 var(--pv-space-5) var(--pv-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pv-post-attachment-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--pv-radius-md);
+  border: 1px solid var(--pv-color-border);
+  background-color: var(--pv-color-surface-hover);
+  font-size: 0.8125rem;
+  color: var(--pv-color-text);
+  text-decoration: none;
+  max-width: 100%;
+}
+
+.pv-post-attachment-pill:hover {
+  border-color: var(--pv-color-secondary);
+}
+
+.pv-post-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--pv-space-3) var(--pv-space-5);
+  border-top: 1px solid var(--pv-color-border);
+  background-color: var(--pv-color-surface);
+}
+
+.pv-post-actions-group {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-2);
+}
+
+.pv-post-owner-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-2);
+}
+
+.pv-post-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--pv-radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pv-post-status-badge.is-draft {
+  background-color: rgba(230, 126, 34, 0.15);
+  color: #D35400;
+  border: 1px solid rgba(230, 126, 34, 0.3);
+}
+
+.pv-post-status-badge.is-published {
+  background-color: rgba(39, 174, 96, 0.15);
+  color: #27AE60;
+  border: 1px solid rgba(39, 174, 96, 0.3);
+}
+
+.pv-post-status-badge.is-archived {
+  background-color: rgba(127, 140, 141, 0.15);
+  color: #7F8C8D;
+  border: 1px solid rgba(127, 140, 141, 0.3);
+}
+
+
 

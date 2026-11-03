@@ -322,4 +322,72 @@ public class PostApiIntegrationTests : IClassFixture<PavenaApiFactory>
         var viewRes2 = await _client.SendAsync(view2);
         viewRes2.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task GetMyPosts_ReturnsAuthorDraftsPublishedAndArchived_AndExcludesOtherUsers()
+    {
+        var (tokenA, userAId, _) = await CreateAndAuthenticateUserAsync("authorMineA");
+        var (tokenB, userBId, _) = await CreateAndAuthenticateUserAsync("authorMineB");
+
+        // 1. Author A creates 1 Draft
+        var draftReq = new CreatePostRequest("Draft post of User A", "OnlyMe", PublishImmediately: false);
+        using var createDraft = new HttpRequestMessage(HttpMethod.Post, "/api/v1/posts");
+        createDraft.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        createDraft.Content = JsonContent.Create(draftReq);
+        var draftRes = await _client.SendAsync(createDraft);
+        draftRes.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        // 2. Author A creates 1 Published post
+        var pubReq = new CreatePostRequest("Published post of User A", "Public", PublishImmediately: true);
+        using var createPub = new HttpRequestMessage(HttpMethod.Post, "/api/v1/posts");
+        createPub.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        createPub.Content = JsonContent.Create(pubReq);
+        var pubRes = await _client.SendAsync(createPub);
+        pubRes.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        // 3. Author A creates and Archives 1 post
+        var archReq = new CreatePostRequest("Archived post of User A", "Connections", PublishImmediately: true);
+        using var createArch = new HttpRequestMessage(HttpMethod.Post, "/api/v1/posts");
+        createArch.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        createArch.Content = JsonContent.Create(archReq);
+        var archRes = await _client.SendAsync(createArch);
+        var archPost = await archRes.Content.ReadFromJsonAsync<PostDto>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        using var archiveMsg = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/posts/{archPost!.Id}/archive");
+        archiveMsg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        var archiveRes = await _client.SendAsync(archiveMsg);
+        archiveRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 4. Author B creates 1 Published post
+        var bReq = new CreatePostRequest("Published post of User B", "Public", PublishImmediately: true);
+        using var createB = new HttpRequestMessage(HttpMethod.Post, "/api/v1/posts");
+        createB.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenB);
+        createB.Content = JsonContent.Create(bReq);
+        await _client.SendAsync(createB);
+
+        // 5. Author A calls GET /api/v1/posts/mine
+        using var getMineA = new HttpRequestMessage(HttpMethod.Get, "/api/v1/posts/mine");
+        getMineA.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        var getMineARes = await _client.SendAsync(getMineA);
+        getMineARes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var postsA = await getMineARes.Content.ReadFromJsonAsync<List<PostDto>>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        postsA.Should().NotBeNull();
+        postsA!.Count.Should().Be(3);
+        postsA.Should().OnlyContain(p => p.AuthorUserId == userAId);
+        postsA.Should().Contain(p => p.Status == "Draft");
+        postsA.Should().Contain(p => p.Status == "Published");
+        postsA.Should().Contain(p => p.Status == "Archived");
+
+        // 6. Author B calls GET /api/v1/posts/mine -> should only see User B's post
+        using var getMineB = new HttpRequestMessage(HttpMethod.Get, "/api/v1/posts/mine");
+        getMineB.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenB);
+        var getMineBRes = await _client.SendAsync(getMineB);
+        getMineBRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var postsB = await getMineBRes.Content.ReadFromJsonAsync<List<PostDto>>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        postsB.Should().NotBeNull();
+        postsB!.Count.Should().Be(1);
+        postsB.Should().OnlyContain(p => p.AuthorUserId == userBId);
+    }
 }
