@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Pavena.API.Authorization;
+using Pavena.Application.Common.Authorization;
 using Pavena.Domain.Entities.Documents;
 using Pavena.Domain.Entities.Research;
 using Pavena.Domain.Enums;

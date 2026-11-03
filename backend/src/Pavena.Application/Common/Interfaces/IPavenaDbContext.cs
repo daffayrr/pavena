@@ -27,6 +27,8 @@ public interface IPavenaDbContext
     DbSet<Connection> Connections { get; }
     DbSet<Follow> Follows { get; }
     DbSet<UserBlock> UserBlocks { get; }
+    DbSet<Post> Posts { get; }
+    DbSet<PostAttachment> PostAttachments { get; }
 
     DbSet<ResearchProject> ResearchProjects { get; }
     DbSet<ResearchMember> ResearchMembers { get; }

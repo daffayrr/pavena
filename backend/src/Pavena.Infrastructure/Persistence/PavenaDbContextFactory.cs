@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Pavena.Infrastructure.Persistence;
 
@@ -33,6 +34,8 @@ public class PavenaDbContextFactory : IDesignTimeDbContextFactory<PavenaDbContex
                 mySqlOptions.EnableRetryOnFailure(3, TimeSpan.FromSeconds(5), null);
             });
         }
+
+        optionsBuilder.ReplaceService<IMigrationsAssembly, ProviderAwareMigrationsAssembly>();
 
         return new PavenaDbContext(optionsBuilder.Options);
     }

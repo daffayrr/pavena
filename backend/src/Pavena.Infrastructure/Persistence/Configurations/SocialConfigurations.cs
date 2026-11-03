@@ -90,3 +90,83 @@ public class UserBlockConfiguration : IEntityTypeConfiguration<UserBlock>
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+public class PostConfiguration : IEntityTypeConfiguration<Post>
+{
+    public void Configure(EntityTypeBuilder<Post> builder)
+    {
+        builder.ToTable("posts");
+
+        builder.HasKey(p => p.Id);
+
+        builder.Property(p => p.Content)
+            .HasMaxLength(Post.MaxContentLength)
+            .IsRequired();
+
+        builder.Property(p => p.Visibility)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
+        builder.Property(p => p.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
+        builder.Property(p => p.ConcurrencyStamp)
+            .HasMaxLength(36)
+            .IsConcurrencyToken();
+
+        builder.HasIndex(p => p.AuthorUserId)
+            .HasDatabaseName("idx_posts_author");
+
+        builder.HasIndex(p => new { p.Status, p.PublishedAtUtc })
+            .HasDatabaseName("idx_posts_status_published");
+
+        builder.HasIndex(p => new { p.Visibility, p.PublishedAtUtc })
+            .HasDatabaseName("idx_posts_visibility_published");
+
+        builder.HasIndex(p => new { p.PublishedAtUtc, p.Id })
+            .HasDatabaseName("idx_posts_feed_composite");
+
+        builder.HasOne(p => p.AuthorUser)
+            .WithMany()
+            .HasForeignKey(p => p.AuthorUserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(p => p.Attachments)
+            .WithOne(a => a.Post)
+            .HasForeignKey(a => a.PostId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public class PostAttachmentConfiguration : IEntityTypeConfiguration<PostAttachment>
+{
+    public void Configure(EntityTypeBuilder<PostAttachment> builder)
+    {
+        builder.ToTable("post_attachments");
+
+        builder.HasKey(a => a.Id);
+
+        builder.Property(a => a.FileName)
+            .HasMaxLength(255)
+            .IsRequired();
+
+        builder.Property(a => a.ContentType)
+            .HasMaxLength(100)
+            .IsRequired();
+
+        builder.Property(a => a.StorageKey)
+            .HasMaxLength(500)
+            .IsRequired();
+
+        builder.HasIndex(a => a.PostId)
+            .HasDatabaseName("idx_post_attachments_post");
+
+        builder.HasOne(a => a.Post)
+            .WithMany(p => p.Attachments)
+            .HasForeignKey(a => a.PostId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

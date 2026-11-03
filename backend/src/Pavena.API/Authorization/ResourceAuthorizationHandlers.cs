@@ -3,31 +3,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Pavena.Application.Common.Interfaces;
 using Pavena.Domain.Entities.Documents;
+using Pavena.Domain.Entities.Identity;
 using Pavena.Domain.Entities.Organizations;
 using Pavena.Domain.Entities.Research;
+using Pavena.Domain.Entities.Social;
+using Pavena.Application.Common.Authorization;
 using Pavena.Domain.Enums;
 
 namespace Pavena.API.Authorization;
-
-public enum ResourceOperation
-{
-    Read,
-    Create,
-    Update,
-    Delete,
-    ManageMembers,
-    ManageCollaborators
-}
-
-public class ResourceOperationRequirement : IAuthorizationRequirement
-{
-    public ResourceOperation Operation { get; }
-
-    public ResourceOperationRequirement(ResourceOperation operation)
-    {
-        Operation = operation;
-    }
-}
 
 public class ProjectAuthorizationHandler : AuthorizationHandler<ResourceOperationRequirement, ResearchProject>
 {
@@ -182,6 +165,121 @@ public class OrganizationAuthorizationHandler : AuthorizationHandler<ResourceOpe
         if (membership != null && membership.Role == OrgMembershipRole.OrganizationAdmin)
         {
             context.Succeed(requirement);
+        }
+    }
+}
+
+public class PostAuthorizationHandler : AuthorizationHandler<ResourceOperationRequirement, Post>
+{
+    private readonly IPavenaDbContext _dbContext;
+
+    public PostAuthorizationHandler(IPavenaDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
+    protected override async Task HandleRequirementAsync(
+        AuthorizationHandlerContext context,
+        ResourceOperationRequirement requirement,
+        Post post)
+    {
+        var userIdClaim = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return;
+        }
+
+        // Deleted posts are not accessible to regular requests
+        if (post.IsDeleted)
+        {
+            return;
+        }
+
+        var isSuperadmin = context.User.IsInRole(PlatformRole.Superadmin);
+        var isPlatformAdmin = context.User.IsInRole(PlatformRole.PlatformAdmin);
+
+        // Author always has full access
+        if (post.AuthorUserId == userId)
+        {
+            context.Succeed(requirement);
+            return;
+        }
+
+        // Only author can update, publish, or archive
+        if (requirement.Operation == ResourceOperation.Update ||
+            requirement.Operation == ResourceOperation.Publish ||
+            requirement.Operation == ResourceOperation.Archive)
+        {
+            return;
+        }
+
+        // Delete can be performed by Platform Moderation
+        if (requirement.Operation == ResourceOperation.Delete)
+        {
+            if (isSuperadmin || isPlatformAdmin)
+            {
+                context.Succeed(requirement);
+            }
+            return;
+        }
+
+        // View (Read) authorization rules
+        if (requirement.Operation == ResourceOperation.Read)
+        {
+            // Draft and Archived posts are strictly private to the author
+            if (post.Status == PostStatus.Draft || post.Status == PostStatus.Archived)
+            {
+                return;
+            }
+
+            // Platform moderation can inspect published posts
+            if (isSuperadmin)
+            {
+                context.Succeed(requirement);
+                return;
+            }
+
+            // Bilateral block check: If either user blocked the other, view is denied
+            var isBlocked = await _dbContext.UserBlocks
+                .AsNoTracking()
+                .AnyAsync(b => (b.BlockerUserId == post.AuthorUserId && b.BlockedUserId == userId) ||
+                               (b.BlockerUserId == userId && b.BlockedUserId == post.AuthorUserId));
+            if (isBlocked)
+            {
+                return;
+            }
+
+            // OnlyMe is strictly author-only
+            if (post.Visibility == PostVisibility.OnlyMe)
+            {
+                return;
+            }
+
+            // Public visibility: accessible to authenticated non-blocked users
+            if (post.Visibility == PostVisibility.Public)
+            {
+                context.Succeed(requirement);
+                return;
+            }
+
+            // Connections visibility: accessible ONLY if mutual accepted connection exists
+            if (post.Visibility == PostVisibility.Connections)
+            {
+                var (canonA, canonB) = userId.CompareTo(post.AuthorUserId) < 0
+                    ? (userId, post.AuthorUserId)
+                    : (post.AuthorUserId, userId);
+
+                var isConnected = await _dbContext.Connections
+                    .AsNoTracking()
+                    .AnyAsync(c => c.CanonicalUserA == canonA &&
+                                   c.CanonicalUserB == canonB &&
+                                   c.Status == ConnectionStatus.Accepted);
+
+                if (isConnected)
+                {
+                    context.Succeed(requirement);
+                }
+            }
         }
     }
 }

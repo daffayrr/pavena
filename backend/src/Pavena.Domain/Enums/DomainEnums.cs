@@ -126,3 +126,17 @@ public enum DocumentPermissionRole
     Reviewer = 3,
     Viewer = 4
 }
+
+public enum PostVisibility
+{
+    Public = 1,
+    Connections = 2,
+    OnlyMe = 3
+}
+
+public enum PostStatus
+{
+    Draft = 1,
+    Published = 2,
+    Archived = 3
+}

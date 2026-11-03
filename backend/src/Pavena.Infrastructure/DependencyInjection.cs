@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -27,21 +28,27 @@ public static class DependencyInjection
         if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
         {
             services.AddDbContext<PavenaDbContext>(options =>
+            {
                 options.UseNpgsql(connectionString, npgsqlOptions =>
                 {
                     npgsqlOptions.MigrationsAssembly(typeof(PavenaDbContext).Assembly.FullName);
                     npgsqlOptions.EnableRetryOnFailure(3, TimeSpan.FromSeconds(5), null);
-                }));
+                });
+                options.ReplaceService<IMigrationsAssembly, ProviderAwareMigrationsAssembly>();
+            });
         }
         else
         {
             var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
             services.AddDbContext<PavenaDbContext>(options =>
+            {
                 options.UseMySql(connectionString, serverVersion, mySqlOptions =>
                 {
                     mySqlOptions.MigrationsAssembly(typeof(PavenaDbContext).Assembly.FullName);
                     mySqlOptions.EnableRetryOnFailure(3, TimeSpan.FromSeconds(5), null);
-                }));
+                });
+                options.ReplaceService<IMigrationsAssembly, ProviderAwareMigrationsAssembly>();
+            });
         }
 
         services.AddScoped<IPavenaDbContext>(provider => provider.GetRequiredService<PavenaDbContext>());
@@ -100,6 +107,7 @@ public static class DependencyInjection
         services.AddScoped<IConnectionService, ConnectionService>();
         services.AddScoped<IFollowService, FollowService>();
         services.AddScoped<IBlockService, BlockService>();
+        services.AddScoped<IPostService, PostService>();
         services.AddScoped<DatabaseSeeder>();
 
         return services;

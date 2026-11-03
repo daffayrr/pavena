@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pavena.Application.Identity.DTOs;
 using Pavena.Application.Identity.Interfaces;
+using Pavena.Application.Social.Interfaces;
 
 namespace Pavena.API.Controllers;
 
@@ -12,13 +13,16 @@ namespace Pavena.API.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserProfileService _profileService;
+    private readonly IPostService _postService;
     private readonly IValidator<UpdateProfileRequest> _updateValidator;
 
     public UsersController(
         IUserProfileService profileService,
+        IPostService postService,
         IValidator<UpdateProfileRequest> updateValidator)
     {
         _profileService = profileService;
+        _postService = postService;
         _updateValidator = updateValidator;
     }
 
@@ -62,6 +66,18 @@ public class UsersController : ControllerBase
 
         var updated = await _profileService.UpdateProfileAsync(userId.Value, request, cancellationToken);
         return Ok(updated);
+    }
+
+    [Authorize]
+    [HttpGet("{userId:guid}/posts")]
+    public async Task<IActionResult> GetUserPosts(Guid userId, CancellationToken cancellationToken)
+    {
+        var callerUserId = GetCurrentUserId();
+        if (!callerUserId.HasValue)
+            return Unauthorized();
+
+        var posts = await _postService.GetUserPostsAsync(callerUserId.Value, userId, cancellationToken);
+        return Ok(posts);
     }
 
     private Guid? GetCurrentUserId()

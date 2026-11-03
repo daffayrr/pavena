@@ -29,6 +29,8 @@ public class PavenaDbContext : IdentityDbContext<User, PlatformRole, Guid>, IPav
     public DbSet<Connection> Connections => Set<Connection>();
     public DbSet<Follow> Follows => Set<Follow>();
     public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
+    public DbSet<Post> Posts => Set<Post>();
+    public DbSet<PostAttachment> PostAttachments => Set<PostAttachment>();
 
     public DbSet<ResearchProject> ResearchProjects => Set<ResearchProject>();
     public DbSet<ResearchMember> ResearchMembers => Set<ResearchMember>();
