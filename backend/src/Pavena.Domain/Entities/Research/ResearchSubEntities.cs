@@ -37,7 +37,7 @@ public class ResearchTask : BaseEntity
     public string? Description { get; set; }
     public Guid? AssigneeUserId { get; set; }
     public TaskPriority Priority { get; set; } = TaskPriority.Medium;
-    public TaskStatus Status { get; set; } = TaskStatus.Todo;
+    public ResearchTaskStatus Status { get; set; } = ResearchTaskStatus.Todo;
     public DateTime? DueDateUtc { get; set; }
     public Guid CreatedByUserId { get; set; }
     public DateTime? CompletedAtUtc { get; set; }

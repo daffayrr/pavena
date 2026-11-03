@@ -1,0 +1,24 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
+
+namespace Pavena.Infrastructure.Persistence;
+
+public class PavenaDbContextFactory : IDesignTimeDbContextFactory<PavenaDbContext>
+{
+    public PavenaDbContext CreateDbContext(string[] args)
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+            ?? "Server=localhost;Port=3306;Database=pavena_db;User=root;Password=abc_123;CharSet=utf8mb4;";
+
+        var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
+
+        var optionsBuilder = new DbContextOptionsBuilder<PavenaDbContext>();
+        optionsBuilder.UseMySql(connectionString, serverVersion, mySqlOptions =>
+        {
+            mySqlOptions.MigrationsAssembly(typeof(PavenaDbContext).Assembly.FullName);
+            mySqlOptions.EnableRetryOnFailure(3, TimeSpan.FromSeconds(5), null);
+        });
+
+        return new PavenaDbContext(optionsBuilder.Options);
+    }
+}

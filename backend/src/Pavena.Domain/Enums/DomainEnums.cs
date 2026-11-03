@@ -89,7 +89,7 @@ public enum TaskPriority
     Urgent = 4
 }
 
-public enum TaskStatus
+public enum ResearchTaskStatus
 {
     Backlog = 1,
     Todo = 2,
