@@ -108,6 +108,7 @@ public static class DependencyInjection
         services.AddScoped<IFollowService, FollowService>();
         services.AddScoped<IBlockService, BlockService>();
         services.AddScoped<IPostService, PostService>();
+        services.AddScoped<IFeedService, FeedService>();
         services.AddScoped<DatabaseSeeder>();
 
         return services;

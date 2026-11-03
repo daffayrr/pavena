@@ -82,4 +82,32 @@ All endpoints are hosted under version prefix `/api/v1/`.
 
 | Method | Route | Description | Auth Required |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/feed` | Retrieve chronological feed (keyset cursor) | Bearer |
+| `GET` | `/feed` | Retrieve My Network feed (own posts, accepted connections, follows; excludes blocked; respects visibility) | Bearer |
+| `GET` | `/feed/discover` | Retrieve Discover feed (public published posts, bilateral block excluded) | Bearer |
+
+### Query Parameters
+- `limit` (optional, integer): Number of posts per page. Default: `20`, Min: `1`, Max: `50`.
+- `cursor` (optional, string): Opaque URL-safe base64 keyset cursor returned by `nextCursor` from the previous page.
+
+### Response Payload (`FeedResponseDto`)
+```json
+{
+  "items": [
+    {
+      "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "authorUserId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "authorDisplayName": "Dr. Marie Curie",
+      "authorAvatarUrl": null,
+      "content": "Excited to share our latest findings in crystallography!",
+      "visibility": "Public",
+      "status": "Published",
+      "createdAtUtc": "2026-11-03T08:00:00Z",
+      "publishedAtUtc": "2026-11-03T08:00:00Z",
+      "editedAtUtc": null,
+      "attachments": []
+    }
+  ],
+  "nextCursor": "MXw2Mzg5Nzc4MjQwMDAwMDAwMDB8M2ZhODVmNjQtNTcxNy00NTYyLWIzZmMtMmM5NjNmNjZhZmE2fDNhNmY0ZTI4OGQ2NGYwY2E4OWQyMzE0ZmVmOGExYTFhYzg2Y2UzZTlmMGY4Nzg3YTcyMjE3MWNkMDdmOTM4NmU",
+  "hasMore": true
+}
+```
