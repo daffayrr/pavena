@@ -82,7 +82,6 @@ public class AcademicProfileClient : IAcademicProfileClient
 
             _logger?.LogWarning("GetAcademicProfile for {Identifier} returned {StatusCode}", identifier, response.StatusCode);
             
-            // Check if matches preview scholar or generate fallback preview
             if (identifier.Equals("marie_curie", StringComparison.OrdinalIgnoreCase) ||
                 identifier.Equals(_sessionService.CurrentUserId.ToString(), StringComparison.OrdinalIgnoreCase))
             {
@@ -114,10 +113,10 @@ public class AcademicProfileClient : IAcademicProfileClient
                         DisplayName = updated.DisplayName,
                         Headline = updated.Headline,
                         Bio = updated.Bio,
-                        Location = updated.Location,
-                        Website = updated.Website,
-                        OrcidId = updated.OrcidId,
-                        PrivacyLevel = updated.PrivacyLevel
+                        CountryCode = updated.CountryCode,
+                        City = updated.City,
+                        PreferredLanguage = updated.PreferredLanguage,
+                        Visibility = updated.Visibility
                     };
                 }
                 return updated;
@@ -136,24 +135,23 @@ public class AcademicProfileClient : IAcademicProfileClient
                     DisplayName = request.DisplayName,
                     Headline = request.Headline,
                     Bio = request.Bio,
-                    Location = request.Location,
-                    Website = request.Website,
-                    OrcidId = request.OrcidId,
-                    PrivacyLevel = request.PrivacyLevel
+                    CountryCode = request.CountryCode,
+                    City = request.City,
+                    PreferredLanguage = request.PreferredLanguage,
+                    Visibility = request.Visibility
                 };
                 return new UserProfileDto(
                     _previewProfile.UserId,
-                    _previewProfile.Username,
                     _previewProfile.DisplayName,
                     _previewProfile.Headline,
                     _previewProfile.Bio,
+                    _previewProfile.CountryCode,
+                    _previewProfile.City,
+                    _previewProfile.PreferredLanguage,
                     _previewProfile.AvatarUrl,
-                    _previewProfile.Location,
-                    _previewProfile.Website,
-                    _previewProfile.OrcidId,
-                    _previewProfile.PrivacyLevel,
-                    _previewProfile.ProfileCompletenessScore,
-                    _previewProfile.CreatedAt
+                    _previewProfile.BannerUrl,
+                    _previewProfile.Visibility,
+                    DateTime.UtcNow
                 );
             }
             return null;
@@ -184,8 +182,7 @@ public class AcademicProfileClient : IAcademicProfileClient
                 request.FieldOfStudy,
                 request.StartYear,
                 request.EndYear,
-                request.GradeOrHonors,
-                request.Activities
+                request.Grade
             );
             if (_previewProfile != null)
             {
@@ -247,9 +244,9 @@ public class AcademicProfileClient : IAcademicProfileClient
             _logger?.LogWarning(ex, "HTTP call failed to AddExperience. Updating local preview state.");
             var newExp = new UserExperienceDto(
                 Guid.NewGuid(),
-                request.Title,
-                request.CompanyOrInstitution,
-                request.Location,
+                request.OrganizationName,
+                request.RoleTitle,
+                request.EmploymentType,
                 request.StartDate,
                 request.EndDate,
                 request.IsCurrent,
@@ -462,30 +459,25 @@ public class AcademicProfileClient : IAcademicProfileClient
             DisplayName: _sessionService.CurrentDisplayName,
             Headline: "Professor of Physics & Chemistry | Nobel Laureate in Physics (1903) & Chemistry (1911)",
             Bio: "Pioneering researcher in radioactivity, isolation of radium and polonium, and development of mobile radiography units for military field hospitals. Committed to academic open access and global scientific collaboration.",
+            CountryCode: "FR",
+            City: "Paris",
+            PreferredLanguage: "fr",
             AvatarUrl: null,
-            Location: "Paris, France",
-            Website: "https://radium-institute.sorbonne.fr",
-            OrcidId: "0000-0002-1825-0097",
-            PrivacyLevel: "Public",
-            ProfileCompletenessScore: 92,
-            CreatedAt: DateTime.UtcNow.AddMonths(-12),
-            IsClaimedProfile: true,
-            IsVerifiedResearcher: true,
-            PublicationsCount: 14,
-            ConnectionsCount: 428,
-            FollowersCount: 1250,
-            FollowingCount: 189,
-            ConnectionStatus: "None",
-            IsFollowing: false,
+            BannerUrl: null,
+            Visibility: "Public",
+            UpdatedAtUtc: DateTime.UtcNow.AddMonths(-1),
+            CompletenessScore: 92,
+            IsVerified: true,
+            Orcid: "0000-0002-1825-0097",
             Educations: new List<UserEducationDto>
             {
-                new(Guid.NewGuid(), "Sorbonne Université (Faculty of Science)", "Doctorate of Science (DSc)", "Physics & Chemistry", 1898, 1903, "Summa Cum Laude", "Recherches sur les substances radioactives"),
-                new(Guid.NewGuid(), "Sorbonne Université", "Master of Science", "Physics & Mathematics", 1891, 1894, "First in Class", "Flying University Warsaw underground scholar")
+                new(Guid.NewGuid(), "Sorbonne Université (Faculty of Science)", "Doctorate of Science (DSc)", "Physics & Chemistry", 1898, 1903, "Summa Cum Laude"),
+                new(Guid.NewGuid(), "Sorbonne Université", "Master of Science", "Physics & Mathematics", 1891, 1894, "First in Class")
             },
             Experiences: new List<UserExperienceDto>
             {
-                new(Guid.NewGuid(), "Director & Lead Investigator", "Institut du Radium / Curietherapy Research Unit", "Paris, France", new DateTime(1914, 1, 1), null, true, "Directing research laboratories in radioactivity, nuclear chemistry, and medical applications of ionizing radiation."),
-                new(Guid.NewGuid(), "Professor of General Physics", "Sorbonne Université", "Paris, France", new DateTime(1906, 5, 1), new DateTime(1934, 7, 1), false, "First female professor at the University of Paris; chair of general physics department.")
+                new(Guid.NewGuid(), "Institut du Radium / Curietherapy Research Unit", "Director & Lead Investigator", "Full-time", new DateTime(1914, 1, 1), null, true, "Directing research laboratories in radioactivity, nuclear chemistry, and medical applications of ionizing radiation."),
+                new(Guid.NewGuid(), "Sorbonne Université", "Professor of General Physics", "Full-time", new DateTime(1906, 5, 1), new DateTime(1934, 7, 1), false, "First female professor at the University of Paris; chair of general physics department.")
             },
             Skills: new List<UserSkillDto>
             {
@@ -495,11 +487,19 @@ public class AcademicProfileClient : IAcademicProfileClient
                 new(Guid.NewGuid(), "Medical Radiography"),
                 new(Guid.NewGuid(), "Peer Review & Ethics")
             },
+            Interests: new List<string> { "Radioactivity", "Nuclear Physics", "Radiation Therapy" },
             Affiliations: new List<AffiliationDto>
             {
-                new(Guid.NewGuid(), "Sorbonne Université", "Faculté des Sciences", "Professor", true, true),
-                new(Guid.NewGuid(), "Institut du Radium", "Curie Laboratory", "Director", true, true)
-            }
+                new(Guid.NewGuid(), "Sorbonne Université", "Faculté des Sciences", "Professor", "Faculty", true),
+                new(Guid.NewGuid(), "Institut du Radium", "Curie Laboratory", "Director", "Faculty", true)
+            },
+            PublicationsCount: 14,
+            ConnectionsCount: 428,
+            FollowersCount: 1250,
+            FollowingCount: 189,
+            ConnectionStatus: "None",
+            IsFollowing: false,
+            CanEdit: true
         );
     }
 
@@ -511,29 +511,24 @@ public class AcademicProfileClient : IAcademicProfileClient
             DisplayName: "Dr. Alan Turing",
             Headline: "Reader in Mathematics & Computing Pioneer | Fellow of the Royal Society",
             Bio: "Mathematician, computer scientist, logician, and theoretical biologist. Researching computational machines, morphogenetic morphogenesis, and algorithmic decidability.",
+            CountryCode: "GB",
+            City: "Manchester",
+            PreferredLanguage: "en",
             AvatarUrl: null,
-            Location: "Cambridge & Manchester, United Kingdom",
-            Website: "https://www.cl.cam.ac.uk/~amt/",
-            OrcidId: "0000-0003-4921-8841",
-            PrivacyLevel: "Public",
-            ProfileCompletenessScore: 88,
-            CreatedAt: DateTime.UtcNow.AddMonths(-8),
-            IsClaimedProfile: true,
-            IsVerifiedResearcher: true,
-            PublicationsCount: 9,
-            ConnectionsCount: 312,
-            FollowersCount: 890,
-            FollowingCount: 140,
-            ConnectionStatus: "None",
-            IsFollowing: false,
+            BannerUrl: null,
+            Visibility: "Public",
+            UpdatedAtUtc: DateTime.UtcNow.AddMonths(-2),
+            CompletenessScore: 88,
+            IsVerified: true,
+            Orcid: "0000-0003-4921-8841",
             Educations: new List<UserEducationDto>
             {
-                new(Guid.NewGuid(), "King's College, Cambridge", "Ph.D.", "Mathematics & Cryptography", 1936, 1938, "With High Honors", "Systems of Logic Based on Ordinals"),
-                new(Guid.NewGuid(), "King's College, Cambridge", "B.A. (Hons)", "Mathematics", 1931, 1934, "First Class", "Elected Fellow at age 22")
+                new(Guid.NewGuid(), "King's College, Cambridge", "Ph.D.", "Mathematics & Cryptography", 1936, 1938, "With High Honors"),
+                new(Guid.NewGuid(), "King's College, Cambridge", "B.A. (Hons)", "Mathematics", 1931, 1934, "First Class")
             },
             Experiences: new List<UserExperienceDto>
             {
-                new(Guid.NewGuid(), "Deputy Director, Computing Machine Laboratory", "University of Manchester", "Manchester, UK", new DateTime(1948, 9, 1), null, true, "Leading early stored-program computer architecture (Manchester Mark 1) and artificial intelligence foundations.")
+                new(Guid.NewGuid(), "University of Manchester", "Deputy Director, Computing Machine Laboratory", "Full-time", new DateTime(1948, 9, 1), null, true, "Leading early stored-program computer architecture (Manchester Mark 1) and artificial intelligence foundations.")
             },
             Skills: new List<UserSkillDto>
             {
@@ -542,11 +537,19 @@ public class AcademicProfileClient : IAcademicProfileClient
                 new(Guid.NewGuid(), "Morphogenesis"),
                 new(Guid.NewGuid(), "Mathematical Logic")
             },
+            Interests: new List<string> { "Algorithms", "Artificial Intelligence", "Cryptography" },
             Affiliations: new List<AffiliationDto>
             {
-                new(Guid.NewGuid(), "University of Manchester", "Department of Mathematics", "Reader", true, true),
-                new(Guid.NewGuid(), "King's College, Cambridge", "Faculty of Mathematics", "Fellow", true, true)
-            }
+                new(Guid.NewGuid(), "University of Manchester", "Department of Mathematics", "Reader", "Faculty", true),
+                new(Guid.NewGuid(), "King's College, Cambridge", "Faculty of Mathematics", "Fellow", "Fellow", true)
+            },
+            PublicationsCount: 9,
+            ConnectionsCount: 312,
+            FollowersCount: 890,
+            FollowingCount: 140,
+            ConnectionStatus: "None",
+            IsFollowing: false,
+            CanEdit: false
         );
     }
 
@@ -557,10 +560,11 @@ public class AcademicProfileClient : IAcademicProfileClient
             new(
                 Guid.NewGuid(),
                 userId,
+                "Dr. Marie Curie",
+                null,
                 "Just published our latest findings on fractional crystallization methods for polonium isolation. Ensuring rigorous reproducible standards across European laboratories.",
                 "Public",
                 "Published",
-                DateTime.UtcNow.AddDays(-3),
                 DateTime.UtcNow.AddDays(-3),
                 DateTime.UtcNow.AddDays(-3),
                 null,
@@ -569,10 +573,11 @@ public class AcademicProfileClient : IAcademicProfileClient
             new(
                 Guid.NewGuid(),
                 userId,
+                "Dr. Marie Curie",
+                null,
                 "Our Mobile Radiography training curriculum has been successfully digitized. Academic open access allows medical researchers worldwide to inspect calibration benchmarks freely.",
                 "Public",
                 "Published",
-                DateTime.UtcNow.AddDays(-14),
                 DateTime.UtcNow.AddDays(-14),
                 DateTime.UtcNow.AddDays(-14),
                 null,

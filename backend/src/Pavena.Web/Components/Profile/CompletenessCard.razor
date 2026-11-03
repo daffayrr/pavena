@@ -72,12 +72,12 @@
     [Parameter] public AcademicProfileDto Profile { get; set; } = default!;
     [Parameter] public EventCallback OnCompleteAction { get; set; }
 
-    private int Score => Profile?.ProfileCompletenessScore ?? 0;
+    private int Score => Profile?.CompletenessScore ?? 0;
     private bool HasHeadline => !string.IsNullOrWhiteSpace(Profile?.Headline);
     private bool HasBio => !string.IsNullOrWhiteSpace(Profile?.Bio);
     private bool HasEducation => Profile?.Educations != null && Profile.Educations.Any();
     private bool HasExperience => Profile?.Experiences != null && Profile.Experiences.Any();
     private bool HasSkills => Profile?.Skills != null && Profile.Skills.Any();
-    private bool HasOrcid => !string.IsNullOrWhiteSpace(Profile?.OrcidId);
+    private bool HasOrcid => !string.IsNullOrWhiteSpace(Profile?.Orcid);
     private bool HasAffiliation => Profile?.Affiliations != null && Profile.Affiliations.Any();
 }

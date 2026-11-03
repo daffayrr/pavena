@@ -38,34 +38,38 @@
                          Placeholder="Tuliskan latar belakang penelitian, minat akademik, dan visi riset Anda..." />
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--pv-space-4);">
-                    <PvInput Id="edit-location"
-                             Label="Lokasi / Kota"
-                             Value="@editLocation"
-                             ValueChanged="@(val => editLocation = val)"
-                             Placeholder="Contoh: Paris, France" />
+                    <PvInput Id="edit-city"
+                             Label="Kota"
+                             Value="@editCity"
+                             ValueChanged="@(val => editCity = val)"
+                             Placeholder="Contoh: Paris" />
 
-                    <PvInput Id="edit-website"
-                             Label="Situs Web Lab / Pribadi"
-                             Value="@editWebsite"
-                             ValueChanged="@(val => editWebsite = val)"
-                             Placeholder="https://lab.sorbonne.fr" />
+                    <PvInput Id="edit-country"
+                             Label="Kode Negara"
+                             Value="@editCountryCode"
+                             ValueChanged="@(val => editCountryCode = val)"
+                             Placeholder="Contoh: FR" />
                 </div>
 
-                <PvInput Id="edit-orcid"
-                         Label="ORCID iD"
-                         Value="@editOrcid"
-                         ValueChanged="@(val => editOrcid = val)"
-                         Placeholder="0000-0002-1825-0097"
-                         HintMessage="Format 16 digit (contoh: 0000-0002-1825-0097). ORCID adalah tanda pengenal mandiri peneliti." />
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--pv-space-4);">
+                    <div class="pv-form-group">
+                        <label class="pv-label" for="edit-lang">Bahasa Pilihan</label>
+                        <select id="edit-lang" class="pv-input" @bind="editPreferredLanguage">
+                            <option value="en">English (en)</option>
+                            <option value="id">Bahasa Indonesia (id)</option>
+                            <option value="fr">Français (fr)</option>
+                            <option value="de">Deutsch (de)</option>
+                        </select>
+                    </div>
 
-                <div class="pv-form-group">
-                    <label class="pv-label" for="edit-privacy">Tingkat Privasi Profil</label>
-                    <select id="edit-privacy" class="pv-input" @bind="editPrivacy">
-                        <option value="Public">Publik (Dapat dilihat oleh semua peneliti & mesin pencari)</option>
-                        <option value="NetworkOnly">Jaringan Kolega (Hanya koneksi dan rekan terdaftar)</option>
-                        <option value="Private">Privat (Hanya Anda yang dapat melihat profil)</option>
-                    </select>
-                    <div class="pv-form-hint">Otorisasi privasi diverifikasi secara ketat di sisi server.</div>
+                    <div class="pv-form-group">
+                        <label class="pv-label" for="edit-privacy">Tingkat Visibilitas Profil</label>
+                        <select id="edit-privacy" class="pv-input" @bind="editVisibility">
+                            <option value="Public">Publik (Semua peneliti & mesin pencari)</option>
+                            <option value="NetworkOnly">Jaringan Kolega (Hanya koneksi terdaftar)</option>
+                            <option value="Private">Privat (Hanya diri sendiri)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         }
@@ -105,19 +109,11 @@
                     </div>
                 </div>
 
-                <PvInput Id="edu-honors"
+                <PvInput Id="edu-grade"
                          Label="Predikat Kelulusan / Penghargaan"
-                         Value="@newEduHonors"
-                         ValueChanged="@(v => newEduHonors = v)"
+                         Value="@newEduGrade"
+                         ValueChanged="@(v => newEduGrade = v)"
                          Placeholder="Contoh: Summa Cum Laude" />
-
-                <PvInput Id="edu-act"
-                         Label="Fokus Riset & Naskah Disertasi"
-                         IsMultiline="true"
-                         Rows="2"
-                         Value="@newEduActivities"
-                         ValueChanged="@(v => newEduActivities = v)"
-                         Placeholder="Topik disertasi atau aktivitas riset akademik selama studi..." />
 
                 <div style="margin-top: 8px;">
                     <PvButton Variant="primary" Size="sm" IsLoading="@isSavingSubItem" OnClick="SaveEducation">
@@ -129,26 +125,26 @@
         else if (activeTab == "experience")
         {
             <div style="display: flex; flex-direction: column; gap: var(--pv-space-3);">
-                <PvInput Id="exp-title"
-                         Label="Jabatan / Peran Riset"
+                <PvInput Id="exp-org"
+                         Label="Lembaga / Universitas / Lab"
                          Required="true"
-                         Value="@newExpTitle"
-                         ValueChanged="@(v => newExpTitle = v)"
-                         Placeholder="Contoh: Principal Investigator / Guru Besar" />
+                         Value="@newExpOrg"
+                         ValueChanged="@(v => newExpOrg = v)"
+                         Placeholder="Contoh: Institut du Radium" />
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--pv-space-3);">
-                    <PvInput Id="exp-inst"
-                             Label="Lembaga / Universitas / Lab"
+                    <PvInput Id="exp-role"
+                             Label="Jabatan / Peran Riset"
                              Required="true"
-                             Value="@newExpInst"
-                             ValueChanged="@(v => newExpInst = v)"
-                             Placeholder="Contoh: Institut du Radium" />
+                             Value="@newExpRole"
+                             ValueChanged="@(v => newExpRole = v)"
+                             Placeholder="Contoh: Principal Investigator" />
 
-                    <PvInput Id="exp-loc"
-                             Label="Lokasi Lembaga"
-                             Value="@newExpLoc"
-                             ValueChanged="@(v => newExpLoc = v)"
-                             Placeholder="Contoh: Paris, France" />
+                    <PvInput Id="exp-type"
+                             Label="Jenis Posisi"
+                             Value="@newExpType"
+                             ValueChanged="@(v => newExpType = v)"
+                             Placeholder="Contoh: Full-time / Fellow" />
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--pv-space-3);">
@@ -186,7 +182,7 @@
         }
         else if (activeTab == "preview")
         {
-            <div style="padding: var(--pv-space-3); background-color: var(--pv-color-background); border-radius: var(--pv-radius-md); border: 1px solid var(--pv-color-border);">
+            <div style="padding: var(--pv-space-4); background-color: var(--pv-color-background); border-radius: var(--pv-radius-md); border: 1px solid var(--pv-color-border);">
                 <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--pv-color-secondary); margin-bottom: 8px;">
                     Pratinjau Tampilan Profil Kolega
                 </div>
@@ -200,17 +196,13 @@
                     @(string.IsNullOrWhiteSpace(editBio) ? "Belum ada biografi ilmiah." : editBio)
                 </div>
                 <div style="margin-top: 12px; display: flex; gap: 12px; font-size: 0.8125rem; color: var(--pv-color-text-muted);">
-                    @if (!string.IsNullOrWhiteSpace(editLocation))
+                    @if (!string.IsNullOrWhiteSpace(editCity) || !string.IsNullOrWhiteSpace(editCountryCode))
                     {
-                        <span>📍 @editLocation</span>
+                        <span>📍 @editCity, @editCountryCode</span>
                     }
-                    @if (!string.IsNullOrWhiteSpace(editWebsite))
+                    @if (!string.IsNullOrWhiteSpace(Profile.Orcid))
                     {
-                        <span>🔗 @editWebsite</span>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(editOrcid))
-                    {
-                        <span class="pv-orcid-badge" style="font-size: 0.6875rem; padding: 2px 6px;">iD @editOrcid</span>
+                        <span class="pv-orcid-badge" style="font-size: 0.6875rem; padding: 2px 6px;">iD @Profile.Orcid</span>
                     }
                 </div>
             </div>
@@ -238,10 +230,10 @@
     private string editDisplayName = "";
     private string editHeadline = "";
     private string editBio = "";
-    private string editLocation = "";
-    private string editWebsite = "";
-    private string editOrcid = "";
-    private string editPrivacy = "Public";
+    private string editCity = "";
+    private string editCountryCode = "";
+    private string editPreferredLanguage = "en";
+    private string editVisibility = "Public";
 
     // New Education fields
     private string newEduInstitution = "";
@@ -249,13 +241,12 @@
     private string newEduField = "";
     private int? newEduStartYear;
     private int? newEduEndYear;
-    private string newEduHonors = "";
-    private string newEduActivities = "";
+    private string newEduGrade = "";
 
     // New Experience fields
-    private string newExpTitle = "";
-    private string newExpInst = "";
-    private string newExpLoc = "";
+    private string newExpOrg = "";
+    private string newExpRole = "";
+    private string newExpType = "Full-time";
     private DateTime newExpStartDate = DateTime.UtcNow.AddYears(-2);
     private DateTime? newExpEndDate;
     private bool newExpIsCurrent = true;
@@ -276,10 +267,10 @@
             editDisplayName = Profile.DisplayName;
             editHeadline = Profile.Headline ?? "";
             editBio = Profile.Bio ?? "";
-            editLocation = Profile.Location ?? "";
-            editWebsite = Profile.Website ?? "";
-            editOrcid = Profile.OrcidId ?? "";
-            editPrivacy = Profile.PrivacyLevel ?? "Public";
+            editCity = Profile.City ?? "";
+            editCountryCode = Profile.CountryCode ?? "";
+            editPreferredLanguage = Profile.PreferredLanguage ?? "en";
+            editVisibility = Profile.Visibility ?? "Public";
         }
     }
 
@@ -309,10 +300,10 @@
                 editDisplayName,
                 editHeadline,
                 editBio,
-                editLocation,
-                editWebsite,
-                editOrcid,
-                editPrivacy
+                editCountryCode,
+                editCity,
+                editPreferredLanguage,
+                editVisibility
             );
 
             var updated = await ProfileClient.UpdateProfileAsync(req);
@@ -350,8 +341,7 @@
                 newEduField,
                 newEduStartYear,
                 newEduEndYear,
-                newEduHonors,
-                newEduActivities
+                newEduGrade
             );
 
             var result = await ProfileClient.AddEducationAsync(req);
@@ -363,8 +353,7 @@
                 newEduField = "";
                 newEduStartYear = null;
                 newEduEndYear = null;
-                newEduHonors = "";
-                newEduActivities = "";
+                newEduGrade = "";
                 await OnProfileSaved.InvokeAsync();
             }
             else
@@ -380,9 +369,9 @@
 
     private async Task SaveExperience()
     {
-        if (string.IsNullOrWhiteSpace(newExpTitle) || string.IsNullOrWhiteSpace(newExpInst))
+        if (string.IsNullOrWhiteSpace(newExpOrg) || string.IsNullOrWhiteSpace(newExpRole))
         {
-            ToastService.ShowError("Jabatan dan lembaga wajib diisi.");
+            ToastService.ShowError("Lembaga dan peran wajib diisi.");
             return;
         }
 
@@ -390,9 +379,9 @@
         try
         {
             var req = new CreateExperienceRequest(
-                newExpTitle,
-                newExpInst,
-                newExpLoc,
+                newExpOrg,
+                newExpRole,
+                newExpType,
                 newExpStartDate,
                 newExpIsCurrent ? null : newExpEndDate,
                 newExpIsCurrent,
@@ -402,10 +391,10 @@
             var result = await ProfileClient.AddExperienceAsync(req);
             if (result != null)
             {
-                ToastService.ShowSuccess($"Pengalaman riset di {newExpInst} berhasil ditambahkan.");
-                newExpTitle = "";
-                newExpInst = "";
-                newExpLoc = "";
+                ToastService.ShowSuccess($"Pengalaman riset di {newExpOrg} berhasil ditambahkan.");
+                newExpOrg = "";
+                newExpRole = "";
+                newExpType = "Full-time";
                 newExpStartDate = DateTime.UtcNow.AddYears(-1);
                 newExpEndDate = null;
                 newExpIsCurrent = true;

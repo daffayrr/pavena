@@ -66,3 +66,11 @@ public class ToastService : IToastService
         }
     }
 }
+
+public static class ToastExtensions
+{
+    public static void ShowSuccess(this IToastService toast, string message, string title = "Berhasil") => toast.Success(message, title);
+    public static void ShowError(this IToastService toast, string message, string title = "Kesalahan") => toast.Error(message, title);
+    public static void ShowInfo(this IToastService toast, string message, string title = "Informasi") => toast.Info(message, title);
+    public static void ShowWarning(this IToastService toast, string message, string title = "Perhatian") => toast.Warning(message, title);
+}

@@ -121,7 +121,7 @@ else
                                                 @post.Content
                                             </div>
                                             <div class="pv-academic-item-meta">
-                                                <span>@(post.PublishedAt?.ToString("dd MMM yyyy") ?? post.CreatedAt.ToString("dd MMM yyyy"))</span>
+                                                <span>@(post.PublishedAtUtc?.ToString("dd MMM yyyy") ?? post.CreatedAtUtc.ToString("dd MMM yyyy"))</span>
                                                 <PvBadge Variant="secondary">@post.Visibility</PvBadge>
                                                 <PvBadge Variant="neutral">@post.Status</PvBadge>
                                             </div>
@@ -164,11 +164,11 @@ else
                         <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted); display: flex; flex-direction: column; gap: 8px;">
                             <div style="display: flex; align-items: center; justify-content: space-between;">
                                 <span>Tingkat Privasi:</span>
-                                <PvBadge Variant="secondary">@profile.PrivacyLevel</PvBadge>
+                                <PvBadge Variant="secondary">@profile.Visibility</PvBadge>
                             </div>
                             <div style="display: flex; align-items: center; justify-content: space-between;">
                                 <span>Verifikasi Peneliti:</span>
-                                @if (profile.IsVerifiedResearcher)
+                                @if (profile.IsVerified)
                                 {
                                     <span class="pv-pill-verified">Terverifikasi</span>
                                 }

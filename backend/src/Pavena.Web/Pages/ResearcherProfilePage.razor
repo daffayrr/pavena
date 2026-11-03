@@ -1,0 +1,369 @@
+@page "/scholars/{identifier}"
+@page "/profile/{identifier}"
+@namespace Pavena.Web.Pages
+@using Pavena.Application.Identity.DTOs
+@using Pavena.Application.Social.DTOs
+@using Pavena.Web.Components.Profile
+@using Pavena.Web.Components.UI
+@using Pavena.Web.Services.Auth
+@using Pavena.Web.Services.Profile
+@using Pavena.Web.Services.Toast
+@inject IAcademicProfileClient ProfileClient
+@inject IScholarSessionService SessionService
+@inject IToastService ToastService
+
+<PageTitle>@(profile != null ? $"{profile.DisplayName} — Peneliti Pavena" : "Profil Peneliti — Pavena")</PageTitle>
+
+@if (isLoading)
+{
+    <PvLoading Text="Memuat profil peneliti..." />
+}
+else if (profile == null)
+{
+    <PvErrorState Title="Peneliti Tidak Ditemukan"
+                  Description="Profil peneliti dengan pengenal ini tidak tersedia atau telah dihapus."
+                  RetryText="Muat Ulang"
+                  OnRetry="LoadProfileAsync" />
+}
+else
+{
+    <div class="pv-container" style="max-width: 1040px; margin: 0 auto; padding-bottom: var(--pv-space-12);">
+        <!-- Profile Header with Relationship Controls -->
+        <ProfileHeader Profile="@profile"
+                       IsOwner="@isOwner"
+                       IsActionLoading="@isActionLoading"
+                       OnConnectClicked="HandleConnect"
+                       OnCancelConnectClicked="HandleCancelConnect"
+                       OnAcceptConnectClicked="HandleAcceptConnect"
+                       OnFollowClicked="HandleFollow"
+                       OnUnfollowClicked="HandleUnfollow" />
+
+        <!-- Privacy Notification Banner if profile is restricted -->
+        @if (isRestrictedView)
+        {
+            <div class="pv-card" style="background-color: var(--pv-color-surface-hover); border-left: 4px solid var(--pv-color-warning); margin-bottom: var(--pv-space-6); padding: var(--pv-space-4);">
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-warning); flex-shrink: 0;">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.9375rem; color: var(--pv-color-text);">
+                            Visibilitas Profil Terbatas (@profile.Visibility)
+                        </div>
+                        <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin-top: 2px;">
+                            Peneliti membatasi informasi detail profil hanya untuk koneksi yang diterima atau akun terotorisasi. Hubungkan koneksi akademik untuk melihat riwayat lengkap.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- 2-Column Responsive Layout -->
+        <div style="display: grid; grid-template-columns: 2fr 1.1fr; gap: var(--pv-space-6); align-items: start;">
+            <!-- Left Main Column -->
+            <div style="display: flex; flex-direction: column; gap: var(--pv-space-6);">
+                <!-- Bio Card -->
+                <PvCard>
+                    <Header>
+                        <h3 style="font-size: 1.125rem; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-primary);">
+                                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                            </svg>
+                            <span>Biografi Ilmiah</span>
+                        </h3>
+                    </Header>
+                    <ChildContent>
+                        @if (string.IsNullOrWhiteSpace(profile.Bio))
+                        {
+                            <PvEmptyState Title="Biografi belum tersedia atau dibatasi"
+                                          Description="Informasi biografi peneliti ini tidak dipublikasikan atau dibatasi oleh pengaturan privasi." />
+                        }
+                        else
+                        {
+                            <div style="font-size: 0.9375rem; line-height: 1.6; color: var(--pv-color-text); white-space: pre-line;">
+                                @profile.Bio
+                            </div>
+                        }
+                    </ChildContent>
+                </PvCard>
+
+                <!-- Education History -->
+                <PvCard>
+                    <ChildContent>
+                        <EducationList Educations="@profile.Educations"
+                                       IsOwner="false" />
+                    </ChildContent>
+                </PvCard>
+
+                <!-- Experience -->
+                <PvCard>
+                    <ChildContent>
+                        <ExperienceList Experiences="@profile.Experiences"
+                                       IsOwner="false" />
+                    </ChildContent>
+                </PvCard>
+
+                <!-- Publications & Scholarly Posts -->
+                <PvCard>
+                    <Header>
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <h3 style="font-size: 1.125rem; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-primary);">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                </svg>
+                                <span>Publikasi & Artikel Ilmiah</span>
+                            </h3>
+                            <PvBadge Variant="primary">@(posts?.Count ?? profile.PublicationsCount)</PvBadge>
+                        </div>
+                    </Header>
+                    <ChildContent>
+                        @if (posts == null || !posts.Any())
+                        {
+                            <PvEmptyState Title="Belum ada publikasi terbuka"
+                                          Description="Peneliti ini belum mempublikasikan artikel publik atau artikel dibatasi untuk jejaring tertentu." />
+                        }
+                        else
+                        {
+                            <div class="pv-academic-list">
+                                @foreach (var post in posts)
+                                {
+                                    <div class="pv-academic-item">
+                                        <div class="pv-academic-item-icon">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                            </svg>
+                                        </div>
+                                        <div class="pv-academic-item-content">
+                                            <div style="font-size: 0.9375rem; color: var(--pv-color-text); line-height: 1.5; margin-bottom: 6px;">
+                                                @post.Content
+                                            </div>
+                                            <div class="pv-academic-item-meta">
+                                                <span>@(post.PublishedAtUtc?.ToString("dd MMM yyyy") ?? post.CreatedAtUtc.ToString("dd MMM yyyy"))</span>
+                                                <PvBadge Variant="secondary">@post.Visibility</PvBadge>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </ChildContent>
+                </PvCard>
+            </div>
+
+            <!-- Right Sidebar Column -->
+            <div style="display: flex; flex-direction: column; gap: var(--pv-space-6);">
+                <!-- Institutional Affiliations -->
+                <PvCard>
+                    <ChildContent>
+                        <AffiliationsList Affiliations="@profile.Affiliations" />
+                    </ChildContent>
+                </PvCard>
+
+                <!-- Research Expertise -->
+                <PvCard>
+                    <ChildContent>
+                        <SkillsList Skills="@profile.Skills"
+                                    IsOwner="false" />
+                    </ChildContent>
+                </PvCard>
+
+                <!-- Academic Integrity Info -->
+                <PvCard>
+                    <Header>
+                        <h4 style="font-size: 0.9375rem; font-weight: 600; margin: 0; color: var(--pv-color-text);">
+                            Integritas & Keabsahan Data
+                        </h4>
+                    </Header>
+                    <ChildContent>
+                        <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted); display: flex; flex-direction: column; gap: 8px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span>Status Keanggotaan:</span>
+                                @if (profile.IsVerified)
+                                {
+                                    <span class="pv-pill-verified">Peneliti Terverifikasi</span>
+                                }
+                                else
+                                {
+                                    <span class="pv-pill-claimed">Klaim Terdaftar</span>
+                                }
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--pv-color-text-subtle); line-height: 1.4;">
+                                Pavena membedakan secara tegas antara klaim mandiri peneliti dan bukti keanggotaan institusional yang telah divalidasi.
+                            </div>
+                        </div>
+                    </ChildContent>
+                </PvCard>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Identifier { get; set; } = "";
+
+    private AcademicProfileDto? profile;
+    private List<PostDto>? posts;
+    private bool isLoading = true;
+    private bool isActionLoading = false;
+    private bool isOwner = false;
+    private bool isRestrictedView = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadProfileAsync();
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Identifier))
+            return;
+
+        isLoading = true;
+        try
+        {
+            profile = await ProfileClient.GetAcademicProfileAsync(Identifier);
+            if (profile != null)
+            {
+                isOwner = profile.UserId == SessionService.CurrentUserId ||
+                          profile.Username.Equals(SessionService.CurrentUsername, StringComparison.OrdinalIgnoreCase);
+
+                isRestrictedView = !isOwner &&
+                                   profile.Visibility != "Public" &&
+                                   (profile.Bio == null && (!profile.Educations.Any() && !profile.Experiences.Any()));
+
+                posts = await ProfileClient.GetUserPostsAsync(profile.UserId);
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Gagal memuat profil: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleConnect()
+    {
+        if (profile == null) return;
+        isActionLoading = true;
+        try
+        {
+            var ok = await ProfileClient.SendConnectionRequestAsync(profile.UserId);
+            if (ok)
+            {
+                ToastService.ShowSuccess($"Permintaan koneksi berhasil dikirim ke {profile.DisplayName}.");
+                profile = profile with { ConnectionStatus = "OutgoingPending" };
+            }
+            else
+            {
+                ToastService.ShowError("Gagal mengirim permintaan koneksi.");
+            }
+        }
+        finally
+        {
+            isActionLoading = false;
+        }
+    }
+
+    private async Task HandleCancelConnect()
+    {
+        if (profile == null) return;
+        isActionLoading = true;
+        try
+        {
+            var ok = await ProfileClient.CancelConnectionRequestAsync(Guid.NewGuid());
+            if (ok)
+            {
+                ToastService.ShowInfo("Permintaan koneksi dibatalkan.");
+                profile = profile with { ConnectionStatus = "None" };
+            }
+        }
+        finally
+        {
+            isActionLoading = false;
+        }
+    }
+
+    private async Task HandleAcceptConnect()
+    {
+        if (profile == null) return;
+        isActionLoading = true;
+        try
+        {
+            var ok = await ProfileClient.AcceptConnectionRequestAsync(Guid.NewGuid());
+            if (ok)
+            {
+                ToastService.ShowSuccess($"Anda sekarang terhubung dengan {profile.DisplayName}.");
+                profile = profile with
+                {
+                    ConnectionStatus = "Accepted",
+                    ConnectionsCount = profile.ConnectionsCount + 1
+                };
+            }
+        }
+        finally
+        {
+            isActionLoading = false;
+        }
+    }
+
+    private async Task HandleFollow()
+    {
+        if (profile == null) return;
+        isActionLoading = true;
+        try
+        {
+            var ok = await ProfileClient.FollowUserAsync(profile.UserId);
+            if (ok)
+            {
+                ToastService.ShowSuccess($"Anda sekarang mengikuti pembaruan riset dari {profile.DisplayName}.");
+                profile = profile with
+                {
+                    IsFollowing = true,
+                    FollowersCount = profile.FollowersCount + 1
+                };
+            }
+            else
+            {
+                ToastService.ShowError("Gagal mengikuti peneliti.");
+            }
+        }
+        finally
+        {
+            isActionLoading = false;
+        }
+    }
+
+    private async Task HandleUnfollow()
+    {
+        if (profile == null) return;
+        isActionLoading = true;
+        try
+        {
+            var ok = await ProfileClient.UnfollowUserAsync(profile.UserId);
+            if (ok)
+            {
+                ToastService.ShowInfo($"Berhenti mengikuti {profile.DisplayName}.");
+                profile = profile with
+                {
+                    IsFollowing = false,
+                    FollowersCount = Math.Max(0, profile.FollowersCount - 1)
+                };
+            }
+            else
+            {
+                ToastService.ShowError("Gagal memperbarui status ikuti.");
+            }
+        }
+        finally
+        {
+            isActionLoading = false;
+        }
+    }
+}

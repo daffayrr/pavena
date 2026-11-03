@@ -44,12 +44,12 @@
                     <div class="pv-academic-item-content">
                         <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
                             <div>
-                                <div class="pv-academic-item-title">@exp.Title</div>
+                                <div class="pv-academic-item-title">@exp.RoleTitle</div>
                                 <div class="pv-academic-item-subtitle">
-                                    @exp.CompanyOrInstitution
-                                    @if (!string.IsNullOrWhiteSpace(exp.Location))
+                                    @exp.OrganizationName
+                                    @if (!string.IsNullOrWhiteSpace(exp.EmploymentType))
                                     {
-                                        <span> · @exp.Location</span>
+                                        <span> · @exp.EmploymentType</span>
                                     }
                                 </div>
                             </div>
@@ -70,7 +70,7 @@
 
                         <div class="pv-academic-item-meta">
                             <span>
-                                @(exp.StartDate.ToString("MMM yyyy")) –
+                                @(exp.StartDate?.ToString("MMM yyyy") ?? "—") –
                                 @(exp.IsCurrent ? "Sekarang" : (exp.EndDate?.ToString("MMM yyyy") ?? "—"))
                             </span>
                             @if (exp.IsCurrent)

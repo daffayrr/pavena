@@ -58,10 +58,7 @@
                         </div>
 
                         <div class="pv-academic-item-subtitle" style="color: var(--pv-color-text-muted);">
-                            @if (!string.IsNullOrWhiteSpace(aff.RoleOrTitle))
-                            {
-                                <strong>@aff.RoleOrTitle</strong>
-                            }
+                            <strong>@(aff.Title ?? aff.Role)</strong>
                             @if (!string.IsNullOrWhiteSpace(aff.Department))
                             {
                                 <span> · @aff.Department</span>

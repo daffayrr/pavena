@@ -70,18 +70,11 @@
 
                         <div class="pv-academic-item-meta">
                             <span>@(edu.StartYear?.ToString() ?? "—") – @(edu.EndYear?.ToString() ?? "Sekarang")</span>
-                            @if (!string.IsNullOrWhiteSpace(edu.GradeOrHonors))
+                            @if (!string.IsNullOrWhiteSpace(edu.Grade))
                             {
-                                <PvBadge Variant="secondary">@edu.GradeOrHonors</PvBadge>
+                                <PvBadge Variant="secondary">@edu.Grade</PvBadge>
                             }
                         </div>
-
-                        @if (!string.IsNullOrWhiteSpace(edu.Activities))
-                        {
-                            <div class="pv-academic-item-desc">
-                                @edu.Activities
-                            </div>
-                        }
                     </div>
                 </div>
             }

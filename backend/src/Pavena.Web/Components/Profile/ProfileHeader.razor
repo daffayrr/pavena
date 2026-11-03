@@ -93,7 +93,7 @@
         <div class="pv-profile-identity">
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <h1>@Profile.DisplayName</h1>
-                @if (Profile.IsVerifiedResearcher)
+                @if (Profile.IsVerified)
                 {
                     <span class="pv-pill-verified" title="Peneliti Terverifikasi secara Institusional">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -129,41 +129,29 @@
                             <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
                         </svg>
                         <strong>@primaryAff.OrganizationName</strong>
-                        @if (!string.IsNullOrEmpty(primaryAff.RoleOrTitle))
+                        @if (!string.IsNullOrEmpty(primaryAff.Title ?? primaryAff.Role))
                         {
-                            <span>(@primaryAff.RoleOrTitle)</span>
+                            <span>(@(primaryAff.Title ?? primaryAff.Role))</span>
                         }
                     </div>
                 }
 
-                @if (!string.IsNullOrWhiteSpace(Profile.Location))
+                @if (!string.IsNullOrWhiteSpace(LocationDisplay))
                 {
                     <div class="pv-profile-meta-item">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                             <circle cx="12" cy="10" r="3"></circle>
                         </svg>
-                        <span>@Profile.Location</span>
+                        <span>@LocationDisplay</span>
                     </div>
                 }
 
-                @if (!string.IsNullOrWhiteSpace(Profile.Website))
+                @if (!string.IsNullOrWhiteSpace(Profile.Orcid))
                 {
-                    <a href="@Profile.Website" target="_blank" rel="noopener noreferrer" class="pv-profile-meta-item" style="color: var(--pv-color-secondary); text-decoration: none;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="2" y1="12" x2="22" y2="12"></line>
-                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                        </svg>
-                        <span>Situs Riset</span>
-                    </a>
-                }
-
-                @if (!string.IsNullOrWhiteSpace(Profile.OrcidId))
-                {
-                    <a href="https://orcid.org/@Profile.OrcidId" target="_blank" rel="noopener noreferrer" class="pv-orcid-badge" title="ID ORCID Peneliti (Metadata Klaim Peneliti)">
+                    <a href="https://orcid.org/@Profile.Orcid" target="_blank" rel="noopener noreferrer" class="pv-orcid-badge" title="ID ORCID Peneliti (Metadata Klaim Peneliti)">
                         <span>iD</span>
-                        <span>@Profile.OrcidId</span>
+                        <span>@Profile.Orcid</span>
                     </a>
                 }
             </div>
@@ -200,4 +188,14 @@
     [Parameter] public EventCallback OnAcceptConnectClicked { get; set; }
     [Parameter] public EventCallback OnFollowClicked { get; set; }
     [Parameter] public EventCallback OnUnfollowClicked { get; set; }
+
+    private string LocationDisplay
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Profile.City) && !string.IsNullOrWhiteSpace(Profile.CountryCode))
+                return $"{Profile.City}, {Profile.CountryCode}";
+            return Profile.City ?? Profile.CountryCode ?? "";
+        }
+    }
 }
