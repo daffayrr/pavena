@@ -1,0 +1,140 @@
+/* ============================================================================
+   PAVENA DESIGN SYSTEM — CSS TOKENS
+   Theme: Academic Professional
+   Supports: Light Mode, Dark Mode, System Preference
+   ============================================================================ */
+
+:root {
+  /* ==========================================
+     LIGHT MODE TOKENS (Default)
+     ========================================== */
+  --pv-color-primary: #17365D;
+  --pv-color-primary-hover: #102642;
+  --pv-color-primary-active: #0A192B;
+  --pv-color-primary-subtle: #EBF1F8;
+  --pv-color-primary-contrast: #FFFFFF;
+
+  --pv-color-secondary: #187C78;
+  --pv-color-secondary-hover: #125F5C;
+  --pv-color-secondary-active: #0C4341;
+  --pv-color-secondary-subtle: #E6F4F3;
+  --pv-color-secondary-contrast: #FFFFFF;
+
+  --pv-color-bg: #F7F9FC;
+  --pv-color-surface: #FFFFFF;
+  --pv-color-surface-hover: #F1F4F9;
+  --pv-color-surface-active: #E8EEF5;
+
+  --pv-color-text: #202C3A;
+  --pv-color-text-muted: #697789;
+  --pv-color-text-subtle: #94A3B8;
+  --pv-color-text-inverse: #FFFFFF;
+
+  --pv-color-border: #E1E7EF;
+  --pv-color-border-hover: #CBD5E1;
+  --pv-color-border-focus: #17365D;
+
+  /* Semantic Feedback */
+  --pv-color-success: #15803D;
+  --pv-color-success-subtle: #EDF8F1;
+  --pv-color-warning: #B45309;
+  --pv-color-warning-subtle: #FEF3C7;
+  --pv-color-danger: #B91C1C;
+  --pv-color-danger-hover: #991B1B;
+  --pv-color-danger-subtle: #FEE2E2;
+  --pv-color-info: #1D4ED8;
+  --pv-color-info-subtle: #EFF6FF;
+
+  /* Shadows (Subtle, crisp, academic) */
+  --pv-shadow-sm: 0 1px 2px 0 rgba(16, 24, 40, 0.05);
+  --pv-shadow-md: 0 4px 6px -1px rgba(16, 24, 40, 0.08), 0 2px 4px -2px rgba(16, 24, 40, 0.04);
+  --pv-shadow-lg: 0 10px 15px -3px rgba(16, 24, 40, 0.08), 0 4px 6px -4px rgba(16, 24, 40, 0.03);
+  --pv-shadow-dropdown: 0 12px 24px -4px rgba(16, 24, 40, 0.12), 0 4px 6px -2px rgba(16, 24, 40, 0.04);
+  --pv-shadow-modal: 0 20px 25px -5px rgba(16, 24, 40, 0.15), 0 8px 10px -6px rgba(16, 24, 40, 0.1);
+
+  /* Typography */
+  --pv-font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --pv-font-serif: "Merriweather", "Georgia", "Cambria", serif;
+  --pv-font-mono: "JetBrains Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
+
+  /* Spacing Scale (Balanced Layout) */
+  --pv-space-1: 0.25rem;  /* 4px */
+  --pv-space-2: 0.5rem;   /* 8px */
+  --pv-space-3: 0.75rem;  /* 12px */
+  --pv-space-4: 1rem;     /* 16px */
+  --pv-space-5: 1.25rem;  /* 20px */
+  --pv-space-6: 1.5rem;   /* 24px */
+  --pv-space-8: 2rem;     /* 32px */
+  --pv-space-10: 2.5rem;  /* 40px */
+  --pv-space-12: 3rem;    /* 48px */
+
+  /* Border Radii */
+  --pv-radius-xs: 4px;
+  --pv-radius-sm: 6px;
+  --pv-radius-md: 8px;
+  --pv-radius-lg: 12px;
+  --pv-radius-xl: 16px;
+  --pv-radius-full: 9999px;
+
+  /* Layout Dimensions */
+  --pv-topbar-height: 64px;
+  --pv-sidebar-width: 250px;
+  --pv-content-max-width: 1240px;
+
+  /* Focus Ring */
+  --pv-focus-ring: 0 0 0 3px rgba(23, 54, 93, 0.25);
+  --pv-focus-ring-danger: 0 0 0 3px rgba(185, 28, 28, 0.25);
+}
+
+/* ==========================================
+   DARK MODE TOKENS
+   Applied via [data-theme="dark"] attribute
+   ========================================== */
+[data-theme="dark"] {
+  --pv-color-primary: #8DB7EA;
+  --pv-color-primary-hover: #A5C8F2;
+  --pv-color-primary-active: #BCD6F7;
+  --pv-color-primary-subtle: #192D44;
+  --pv-color-primary-contrast: #0F1A28;
+
+  --pv-color-secondary: #55BDB2;
+  --pv-color-secondary-hover: #6ECAC0;
+  --pv-color-secondary-active: #88D7CF;
+  --pv-color-secondary-subtle: #173836;
+  --pv-color-secondary-contrast: #0D2120;
+
+  --pv-color-bg: #101923;
+  --pv-color-surface: #1B2937;
+  --pv-color-surface-hover: #223447;
+  --pv-color-surface-active: #2A3F55;
+
+  --pv-color-text: #E8EEF5;
+  --pv-color-text-muted: #A5B2C1;
+  --pv-color-text-subtle: #738496;
+  --pv-color-text-inverse: #101923;
+
+  --pv-color-border: #334353;
+  --pv-color-border-hover: #45576A;
+  --pv-color-border-focus: #8DB7EA;
+
+  /* Semantic Feedback (Dark mode adjusted) */
+  --pv-color-success: #34D399;
+  --pv-color-success-subtle: #064E3B;
+  --pv-color-warning: #FBBF24;
+  --pv-color-warning-subtle: #451A03;
+  --pv-color-danger: #F87171;
+  --pv-color-danger-hover: #FCA5A5;
+  --pv-color-danger-subtle: #450A0A;
+  --pv-color-info: #60A5FA;
+  --pv-color-info-subtle: #1E3A8A;
+
+  /* Shadows (Dark mode: crisp borders + subtle ambient glow) */
+  --pv-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --pv-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.45), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --pv-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+  --pv-shadow-dropdown: 0 12px 24px -4px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  --pv-shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+
+  --pv-focus-ring: 0 0 0 3px rgba(141, 183, 234, 0.35);
+  --pv-focus-ring-danger: 0 0 0 3px rgba(248, 113, 113, 0.35);
+}

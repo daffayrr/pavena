@@ -1,0 +1,233 @@
+/* ============================================================================
+   PAVENA APPLICATION SHELL & MASTER STYLESHEET
+   Combines Tokens, Base, Components, and Responsive Application Shell
+   ============================================================================ */
+
+@import url('tokens.css');
+@import url('base.css');
+@import url('components.css');
+
+/* ============================================================================
+   APPLICATION SHELL LAYOUT
+   ============================================================================ */
+.pv-app-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* TOPBAR */
+.pv-topbar {
+  height: var(--pv-topbar-height);
+  background-color: var(--pv-color-surface);
+  border-bottom: 1px solid var(--pv-color-border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--pv-space-5);
+  transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+.pv-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-4);
+}
+
+.pv-mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--pv-color-text);
+  padding: var(--pv-space-1);
+}
+
+.pv-brand-link {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-2);
+  text-decoration: none !important;
+  color: var(--pv-color-text);
+}
+
+.pv-brand-logo-mark {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--pv-color-primary) 0%, var(--pv-color-secondary) 100%);
+  border-radius: var(--pv-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 1.125rem;
+  letter-spacing: -0.5px;
+  box-shadow: var(--pv-shadow-sm);
+}
+
+.pv-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.pv-brand-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--pv-color-primary);
+  line-height: 1.1;
+}
+
+.pv-brand-tagline {
+  font-size: 0.6875rem;
+  color: var(--pv-color-text-muted);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.pv-topbar-center {
+  flex: 1;
+  max-width: 480px;
+  margin: 0 var(--pv-space-6);
+}
+
+.pv-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-3);
+}
+
+/* SHELL BODY (SIDEBAR + MAIN CONTENT) */
+.pv-shell-body {
+  display: flex;
+  flex: 1;
+  position: relative;
+}
+
+/* SIDEBAR */
+.pv-sidebar {
+  width: var(--pv-sidebar-width);
+  background-color: var(--pv-color-surface);
+  border-right: 1px solid var(--pv-color-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--pv-space-4) var(--pv-space-3);
+  position: sticky;
+  top: var(--pv-topbar-height);
+  height: calc(100vh - var(--pv-topbar-height));
+  overflow-y: auto;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease-in-out;
+}
+
+.pv-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pv-space-1);
+}
+
+.pv-nav-heading {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--pv-color-text-subtle);
+  padding: var(--pv-space-2) var(--pv-space-3);
+}
+
+.pv-nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-3);
+  padding: 0.55rem var(--pv-space-3);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--pv-color-text-muted);
+  border-radius: var(--pv-radius-md);
+  text-decoration: none !important;
+  transition: all 0.12s ease-in-out;
+}
+
+.pv-nav-link:hover {
+  background-color: var(--pv-color-surface-hover);
+  color: var(--pv-color-text);
+}
+
+.pv-nav-link.active {
+  background-color: var(--pv-color-primary-subtle);
+  color: var(--pv-color-primary);
+  font-weight: 600;
+}
+
+.pv-nav-link-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pv-nav-badge {
+  margin-left: auto;
+}
+
+/* MAIN CONTENT */
+.pv-main-content {
+  flex: 1;
+  min-width: 0;
+  background-color: var(--pv-color-bg);
+  padding: var(--pv-space-6) var(--pv-space-8);
+}
+
+/* RESPONSIVE DRAWER & BREAKPOINTS */
+.pv-sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 992px) {
+  .pv-sidebar {
+    position: fixed;
+    top: var(--pv-topbar-height);
+    left: 0;
+    z-index: 80;
+    transform: translateX(-100%);
+    box-shadow: var(--pv-shadow-dropdown);
+  }
+
+  .pv-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .pv-sidebar-backdrop.is-open {
+    display: block;
+    position: fixed;
+    top: var(--pv-topbar-height);
+    left: 0;
+    width: 100vw;
+    height: calc(100vh - var(--pv-topbar-height));
+    background-color: rgba(16, 25, 35, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 75;
+  }
+
+  .pv-mobile-menu-btn {
+    display: inline-flex;
+  }
+
+  .pv-topbar-center {
+    display: none; /* hidden or collapsible on mobile */
+  }
+
+  .pv-main-content {
+    padding: var(--pv-space-4);
+  }
+
+  .pv-brand-tagline {
+    display: none;
+  }
+}

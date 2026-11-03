@@ -1,0 +1,17 @@
+<a href="/" class="pv-brand-link @Class">
+    <div class="pv-brand-logo-mark" aria-hidden="true">
+        P
+    </div>
+    <div class="pv-brand-text">
+        <span class="pv-brand-name">Pavena</span>
+        @if (ShowTagline)
+        {
+            <span class="pv-brand-tagline">Connecting Minds, Advancing Research</span>
+        }
+    </div>
+</a>
+
+@code {
+    [Parameter] public bool ShowTagline { get; set; } = true;
+    [Parameter] public string? Class { get; set; }
+}

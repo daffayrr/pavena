@@ -1,0 +1,63 @@
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<div id="@_dropdownId" class="pv-dropdown @Class">
+    <div @onclick="ToggleDropdown" @onclick:stopPropagation="true" class="pv-dropdown-trigger">
+        @Trigger
+    </div>
+
+    <div class="pv-dropdown-menu @(IsOpen ? "is-open" : "") @(Align == "left" ? "align-left" : "")"
+         role="menu"
+         aria-orientation="vertical">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter] public RenderFragment? Trigger { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string Align { get; set; } = "right";
+    [Parameter] public string? Class { get; set; }
+
+    public bool IsOpen { get; private set; }
+    private readonly string _dropdownId = $"dropdown-{Guid.NewGuid():N}";
+    private DotNetObjectReference<PvDropdown>? _dotNetRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("PavenaUI.registerDropdown", _dropdownId, _dotNetRef);
+            }
+            catch
+            {
+                // Fallback for prerendering
+            }
+        }
+    }
+
+    public void ToggleDropdown()
+    {
+        IsOpen = !IsOpen;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void CloseDropdown()
+    {
+        if (IsOpen)
+        {
+            IsOpen = false;
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _dotNetRef?.Dispose();
+        await ValueTask.CompletedTask;
+    }
+}

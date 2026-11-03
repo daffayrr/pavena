@@ -14,6 +14,7 @@
     <ProjectReference Include="..\..\src\Pavena.Application\Pavena.Application.csproj" />
     <ProjectReference Include="..\..\src\Pavena.Infrastructure\Pavena.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Pavena.API\Pavena.API.csproj" />
+    <ProjectReference Include="..\..\src\Pavena.Web\Pavena.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>

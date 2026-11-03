@@ -1,0 +1,344 @@
+@page "/design-system"
+@inject IToastService ToastService
+@inject IThemeService ThemeService
+
+<PageTitle>Pavena — Design System Hub</PageTitle>
+
+<div class="pv-container" style="padding-top: 1rem; padding-bottom: 3rem;">
+    <!-- Header Banner -->
+    <div style="margin-bottom: 2rem;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+            <PvBadge Variant="primary">Milestone H Baseline</PvBadge>
+            <PvBadge Variant="secondary">Academic Professional</PvBadge>
+            <PvBadge Variant="neutral">WCAG 2.1 AA/AAA</PvBadge>
+        </div>
+        <h1 style="font-size: 2.25rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.03em;">
+            Pavena Design System
+        </h1>
+        <p style="font-size: 1.125rem; color: var(--pv-color-text-muted); max-width: 780px;">
+            Sistem visual resmi untuk platform jejaring dan ruang kerja kolaborasi akademik Pavena. Menekankan ketenangan, kejelasan hierarki, integritas ilmiah, serta aksesibilitas tinggi dalam Mode Terang dan Gelap.
+        </p>
+    </div>
+
+    <!-- Section 1: Color Tokens & Contrast -->
+    <div style="margin-bottom: 3rem;">
+        <h2 style="border-bottom: 1px solid var(--pv-color-border); padding-bottom: 0.5rem; margin-bottom: 1.25rem;">
+            1. Token Warna & Rasio Kontras
+        </h2>
+        <p style="color: var(--pv-color-text-muted); margin-bottom: 1rem; font-size: 0.875rem;">
+            Seluruh warna dipetakan ke CSS Variables terpusat (<code>tokens.css</code>). Mode saat ini: <strong>@ThemeService.EffectiveTheme.ToUpperInvariant()</strong> (Preferensi: @ThemeService.CurrentTheme).
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+            <div class="pv-card" style="padding: 1rem;">
+                <div style="height: 48px; border-radius: var(--pv-radius-md); background-color: var(--pv-color-primary); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: center; color: var(--pv-color-primary-contrast); font-weight: 600;">
+                    Primary
+                </div>
+                <div style="font-weight: 600; font-size: 0.875rem;">Primary Brand</div>
+                <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">Navy / Soft Blue</div>
+                <div style="font-size: 0.75rem; margin-top: 4px; font-weight: 500; color: var(--pv-color-success);">WCAG AAA (11.2:1 / 6.5:1)</div>
+            </div>
+
+            <div class="pv-card" style="padding: 1rem;">
+                <div style="height: 48px; border-radius: var(--pv-radius-md); background-color: var(--pv-color-secondary); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: center; color: var(--pv-color-secondary-contrast); font-weight: 600;">
+                    Secondary
+                </div>
+                <div style="font-weight: 600; font-size: 0.875rem;">Secondary Accent</div>
+                <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">Refined Scholar Teal</div>
+                <div style="font-size: 0.75rem; margin-top: 4px; font-weight: 500; color: var(--pv-color-success);">WCAG AA (4.7:1 / 6.9:1)</div>
+            </div>
+
+            <div class="pv-card" style="padding: 1rem;">
+                <div style="height: 48px; border-radius: var(--pv-radius-md); background-color: var(--pv-color-surface); border: 1px solid var(--pv-color-border); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: center; color: var(--pv-color-text); font-weight: 600;">
+                    Surface
+                </div>
+                <div style="font-weight: 600; font-size: 0.875rem;">Surface / Card</div>
+                <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">#FFFFFF / #1B2937</div>
+                <div style="font-size: 0.75rem; margin-top: 4px; font-weight: 500; color: var(--pv-color-success);">WCAG AAA (12.3:1)</div>
+            </div>
+
+            <div class="pv-card" style="padding: 1rem;">
+                <div style="height: 48px; border-radius: var(--pv-radius-md); background-color: var(--pv-color-bg); border: 1px solid var(--pv-color-border); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: center; color: var(--pv-color-text); font-weight: 600;">
+                    Background
+                </div>
+                <div style="font-weight: 600; font-size: 0.875rem;">Page Background</div>
+                <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">#F7F9FC / #101923</div>
+                <div style="font-size: 0.75rem; margin-top: 4px; font-weight: 500; color: var(--pv-color-text-muted);">Clean Canvas</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Buttons -->
+    <div style="margin-bottom: 3rem;">
+        <h2 style="border-bottom: 1px solid var(--pv-color-border); padding-bottom: 0.5rem; margin-bottom: 1.25rem;">
+            2. Tombol (PvButton)
+        </h2>
+        <div class="pv-card" style="padding: 1.5rem;">
+            <div style="margin-bottom: 1.5rem;">
+                <div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.75rem; color: var(--pv-color-text-muted);">Varian Gaya</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+                    <PvButton Variant="primary" OnClick="@(() => ToastService.Success("Tombol Primary diklik!"))">Primary Action</PvButton>
+                    <PvButton Variant="secondary" OnClick="@(() => ToastService.Info("Tombol Secondary diklik!"))">Secondary Action</PvButton>
+                    <PvButton Variant="outline" OnClick="@(() => ToastService.Info("Tombol Outline diklik!"))">Outline Action</PvButton>
+                    <PvButton Variant="ghost" OnClick="@(() => ToastService.Info("Tombol Ghost diklik!"))">Ghost Action</PvButton>
+                    <PvButton Variant="danger" OnClick="@(() => ToastService.Error("Tombol Danger diklik!"))">Danger Action</PvButton>
+                    <PvButton Variant="primary" Disabled="true">Disabled</PvButton>
+                    <PvButton Variant="primary" IsLoading="_isLoadingTest" OnClick="ToggleLoading">
+                        <span>@(_isLoadingTest ? "Memproses..." : "Simulasi Loading")</span>
+                    </PvButton>
+                </div>
+            </div>
+
+            <div>
+                <div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.75rem; color: var(--pv-color-text-muted);">Ukuran (sm, md, lg)</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+                    <PvButton Size="sm" Variant="primary">Small (32px)</PvButton>
+                    <PvButton Size="md" Variant="primary">Medium (40px)</PvButton>
+                    <PvButton Size="lg" Variant="primary">Large (48px)</PvButton>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Form Inputs & Search -->
+    <div style="margin-bottom: 3rem;">
+        <h2 style="border-bottom: 1px solid var(--pv-color-border); padding-bottom: 0.5rem; margin-bottom: 1.25rem;">
+            3. Input Formulir & Pencarian (PvInput & PvSearch)
+        </h2>
+        <div class="pv-card" style="padding: 1.5rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+                <PvInput Id="inp-name"
+                         Label="Nama Peneliti"
+                         Required="true"
+                         Placeholder="Contoh: Prof. B. J. Habibie"
+                         @bind-Value="_inputName"
+                         HelperText="Gunakan nama resmi beserta gelar akademik jika ada." />
+
+                <PvInput Id="inp-email"
+                         Type="email"
+                         Label="Email Institusi"
+                         Required="true"
+                         Placeholder="nama@universitas.ac.id"
+                         @bind-Value="_inputEmail"
+                         ErrorMessage="@(_emailError ? "Format email institusi tidak valid (harus mengandung '@')." : null)"
+                         @onblur="ValidateEmail" />
+
+                <div style="grid-column: 1 / -1;">
+                    <PvInput Id="inp-bio"
+                             Label="Abstrak / Biografi Riset"
+                             IsMultiline="true"
+                             Rows="3"
+                             Placeholder="Deskripsikan fokus riset, minat akademik, atau ringkasan metodologi..."
+                             @bind-Value="_inputBio"
+                             HelperText="Maksimal 500 kata." />
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem; border-top: 1px solid var(--pv-color-border); padding-top: 1.5rem;">
+                <div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.75rem; color: var(--pv-color-text-muted);">PvSearch Terintegrasi Debounce & Shortcut</div>
+                <div style="max-width: 480px;">
+                    <PvSearch Placeholder="Cari judul paper, DOI, atau nama scholar..."
+                              OnSearch="HandleLiveSearch" />
+                    @if (!string.IsNullOrEmpty(_searchResult))
+                    {
+                        <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin-top: 6px;">
+                            Kata kunci dicari: <strong>@_searchResult</strong>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Avatars & Badges -->
+    <div style="margin-bottom: 3rem;">
+        <h2 style="border-bottom: 1px solid var(--pv-color-border); padding-bottom: 0.5rem; margin-bottom: 1.25rem;">
+            4. Avatar & Lencana Status (PvAvatar & PvBadge)
+        </h2>
+        <div class="pv-card" style="padding: 1.5rem;">
+            <div style="margin-bottom: 1.5rem;">
+                <div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.75rem; color: var(--pv-color-text-muted);">Ukuran Avatar & Indikator Kehadiran</div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <PvAvatar Name="Albert Einstein" Size="xs" Status="online" />
+                    <PvAvatar Name="Marie Curie" Size="sm" Status="online" />
+                    <PvAvatar Name="Isaac Newton" Size="md" Status="busy" />
+                    <PvAvatar Name="Ada Lovelace" Size="lg" Status="offline" />
+                    <PvAvatar Name="Nikola Tesla" Size="xl" Status="online" />
+                </div>
+            </div>
+
+            <div>
+                <div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.75rem; color: var(--pv-color-text-muted);">Lencana Status (PvBadge)</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                    <PvBadge Variant="primary" ShowDot="true">Primary Badge</PvBadge>
+                    <PvBadge Variant="secondary" ShowDot="true">Scholar Verified</PvBadge>
+                    <PvBadge Variant="success" ShowDot="true">Published</PvBadge>
+                    <PvBadge Variant="warning" ShowDot="true">Under Peer Review</PvBadge>
+                    <PvBadge Variant="danger" ShowDot="true">Rejected / Withdrawn</PvBadge>
+                    <PvBadge Variant="neutral" ShowDot="false">Draft</PvBadge>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Interactive Tabs, Dropdown & Modal -->
+    <div style="margin-bottom: 3rem;">
+        <h2 style="border-bottom: 1px solid var(--pv-color-border); padding-bottom: 0.5rem; margin-bottom: 1.25rem;">
+            5. Komponen Interaktif (Tabs, Dropdown, Modal)
+        </h2>
+        <div class="pv-card" style="padding: 1.5rem;">
+            <!-- Tabs -->
+            <div style="margin-bottom: 1.5rem;">
+                <PvTabs Tabs="_sampleTabs" @bind-ActiveTab="_activeTabKey" />
+                <div style="padding: 1rem; background-color: var(--pv-color-surface-hover); border-radius: var(--pv-radius-md); font-size: 0.875rem;">
+                    Konten aktif untuk tab: <strong>@_activeTabKey.ToUpperInvariant()</strong>
+                </div>
+            </div>
+
+            <!-- Modal Trigger & Dropdown -->
+            <div style="display: flex; gap: 1rem; align-items: center; border-top: 1px solid var(--pv-color-border); padding-top: 1.5rem;">
+                <PvButton Variant="primary" OnClick="() => _isModalOpen = true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="9" y1="3" x2="9" y2="21"></line>
+                    </svg>
+                    <span>Buka Contoh Dialog Modal</span>
+                </PvButton>
+
+                <PvDropdown Align="left">
+                    <Trigger>
+                        <PvButton Variant="outline">
+                            <span>Aksi Menu Popover</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </PvButton>
+                    </Trigger>
+                    <ChildContent>
+                        <button type="button" class="pv-dropdown-item" @onclick='@(() => ToastService.Success("Dokumen berhasil diekspor ke format BibTeX."))'>
+                            Ekspor BibTeX
+                        </button>
+                        <button type="button" class="pv-dropdown-item" @onclick='@(() => ToastService.Info("Sinkronisasi ORCID dimulai."))'>
+                            Sinkronkan dengan ORCID
+                        </button>
+                        <div class="pv-dropdown-divider"></div>
+                        <button type="button" class="pv-dropdown-item is-danger" @onclick='@(() => ToastService.Error("Arsip riset dihapus."))'>
+                            Hapus Arsip
+                        </button>
+                    </ChildContent>
+                </PvDropdown>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Loading States & Skeletons -->
+    <div style="margin-bottom: 3rem;">
+        <h2 style="border-bottom: 1px solid var(--pv-color-border); padding-bottom: 0.5rem; margin-bottom: 1.25rem;">
+            6. Status Pemuatan & Skeleton (PvLoading)
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+            <div>
+                <div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.75rem; color: var(--pv-color-text-muted);">Skeleton Feed Card (Shimmer)</div>
+                <PvLoading Type="feed-card" />
+            </div>
+
+            <div class="pv-card" style="padding: 1.5rem;">
+                <div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.75rem; color: var(--pv-color-text-muted);">Spinners & Bar Skeleton</div>
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                    <PvLoading Type="spinner" Size="20" />
+                    <PvLoading Type="spinner" Size="28" />
+                    <PvLoading Type="spinner" Size="36" />
+                </div>
+                <PvLoading Type="skeleton" Style="height: 14px; width: 85%; margin-bottom: 8px;" />
+                <PvLoading Type="skeleton" Style="height: 14px; width: 65%; margin-bottom: 8px;" />
+                <PvLoading Type="skeleton" Style="height: 14px; width: 45%;" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Empty State & Error State -->
+    <div style="margin-bottom: 3rem;">
+        <h2 style="border-bottom: 1px solid var(--pv-color-border); padding-bottom: 0.5rem; margin-bottom: 1.25rem;">
+            7. Status Kosong & Kesalahan (PvEmptyState & PvErrorState)
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+            <PvEmptyState Title="Belum Ada Publikasi"
+                          Description="Publikasi atau naskah pra-cetak Anda akan muncul di sini setelah Anda membagikannya ke jaringan ilmiah."
+                          ActionContent="@_emptyStateAction" />
+
+            <PvErrorState Title="Koneksi Server Terputus"
+                          Message="Tidak dapat terhubung ke endpoint API feed. Pastikan koneksi jaringan Anda stabil."
+                          RetryLabel="Coba Sinkron Ulang"
+                          OnRetry='@(() => ToastService.Info("Mencoba menyambungkan kembali ke server..."))' />
+        </div>
+    </div>
+</div>
+
+<!-- Modal Instance -->
+<PvModal @bind-IsOpen="_isModalOpen" Title="Konfirmasi Publikasi Naskah Riset">
+    <ChildContent>
+        <p style="margin-bottom: 0.75rem;">
+            Apakah Anda yakin ingin mempublikasikan naskah <strong>"Quantum Entanglement in Biological Neural Networks"</strong> ke linimasa publik?
+        </p>
+        <p style="font-size: 0.875rem; color: var(--pv-color-text-muted);">
+            Naskah yang dipublikasikan akan berstatus <code>Published</code> dan dapat ditelaah oleh seluruh anggota jaringan akademik Pavena.
+        </p>
+    </ChildContent>
+    <Footer>
+        <PvButton Variant="ghost" OnClick="() => _isModalOpen = false">Batal</PvButton>
+        <PvButton Variant="primary" OnClick="ConfirmPublish">Ya, Publikasikan Sekarang</PvButton>
+    </Footer>
+</PvModal>
+
+@code {
+    private bool _isLoadingTest;
+    private string? _inputName = "Dr. Marie Curie";
+    private string? _inputEmail = "marie.curie@sorbonne.ac.fr";
+    private string? _inputBio = "Peneliti fisika dan kimia peraih Nobel ganda. Meneliti radioaktivitas dan isolasi isotop radioaktif.";
+    private bool _emailError;
+    private string? _searchResult;
+    private bool _isModalOpen;
+
+    private string _activeTabKey = "overview";
+    private readonly List<PvTabs.TabItem> _sampleTabs = new()
+    {
+        new("overview", "Ringkasan Riset", null, "12"),
+        new("publications", "Daftar Publikasi", null, "4"),
+        new("collaborators", "Kolega & Tim", null, null),
+        new("settings", "Pengaturan Akun", null, null)
+    };
+
+    private RenderFragment _emptyStateAction => @<PvButton Variant="outline" Size="sm" OnClick='@(() => ToastService.Info("Navigasi ke pembuatan naskah baru."))'>Unggah Publikasi Pertama</PvButton>;
+
+    private void ValidateEmail()
+    {
+        _emailError = string.IsNullOrWhiteSpace(_inputEmail) || !_inputEmail.Contains('@');
+    }
+
+    private void ToggleLoading()
+    {
+        _isLoadingTest = true;
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1500);
+            _isLoadingTest = false;
+            await InvokeAsync(StateHasChanged);
+            ToastService.Success("Operasi asinkron selesai dengan sukses!");
+        });
+    }
+
+    private void HandleLiveSearch(string query)
+    {
+        _searchResult = query;
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            ToastService.Info($"Mencari: \"{query}\"");
+        }
+    }
+
+    private void ConfirmPublish()
+    {
+        _isModalOpen = false;
+        ToastService.Success("Naskah berhasil dipublikasikan ke linimasa akademik Pavena!");
+    }
+}

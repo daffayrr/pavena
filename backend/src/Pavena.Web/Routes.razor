@@ -1,0 +1,19 @@
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(Layout.MainLayout)">
+            <div class="pv-container" style="padding-top: 3rem; text-align: center;">
+                <PvEmptyState Title="404 — Halaman Tidak Ditemukan"
+                              Description="Halaman atau rute akademik yang Anda cari tidak tersedia dalam direktori Pavena."
+                              ActionContent="@GoHomeButton" />
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>
+
+@code {
+    private RenderFragment GoHomeButton => @<a href="/" class="pv-btn pv-btn-primary">Kembali ke Linimasa</a>;
+}

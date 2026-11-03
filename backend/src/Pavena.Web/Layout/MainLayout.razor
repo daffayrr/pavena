@@ -1,0 +1,39 @@
+@inherits LayoutComponentBase
+@inject IThemeService ThemeService
+
+<div class="pv-app-wrapper">
+    <Topbar OnToggleMobileNav="ToggleMobileNav" />
+
+    <div class="pv-shell-body">
+        <Sidebar IsOpen="_isMobileNavOpen" OnCloseMobileNav="CloseMobileNav" />
+        <div class="pv-sidebar-backdrop @(_isMobileNavOpen ? "is-open" : "")" @onclick="CloseMobileNav" aria-hidden="true"></div>
+
+        <main class="pv-main-content" id="main-content" role="main">
+            @Body
+        </main>
+    </div>
+
+    <PvToastContainer />
+</div>
+
+@code {
+    private bool _isMobileNavOpen;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await ThemeService.InitializeAsync();
+        }
+    }
+
+    private void ToggleMobileNav()
+    {
+        _isMobileNavOpen = !_isMobileNavOpen;
+    }
+
+    private void CloseMobileNav()
+    {
+        _isMobileNavOpen = false;
+    }
+}

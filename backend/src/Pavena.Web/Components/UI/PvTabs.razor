@@ -1,0 +1,36 @@
+<div class="pv-tabs-nav" role="tablist" aria-label="@AriaLabel">
+    @foreach (var tab in Tabs)
+    {
+        var isActive = tab.Key == ActiveTab;
+        <button type="button"
+                role="tab"
+                class="pv-tab-item @(isActive ? "is-active" : "")"
+                aria-selected="@(isActive ? "true" : "false")"
+                @onclick="() => SelectTab(tab.Key)">
+            @if (tab.Icon != null)
+            {
+                @tab.Icon
+            }
+            <span>@tab.Label</span>
+            @if (!string.IsNullOrEmpty(tab.Badge))
+            {
+                <PvBadge Variant="@(isActive ? "primary" : "neutral")">@tab.Badge</PvBadge>
+            }
+        </button>
+    }
+</div>
+
+@code {
+    public record TabItem(string Key, string Label, RenderFragment? Icon = null, string? Badge = null);
+
+    [Parameter] public IReadOnlyList<TabItem> Tabs { get; set; } = Array.Empty<TabItem>();
+    [Parameter] public string? ActiveTab { get; set; }
+    [Parameter] public EventCallback<string> ActiveTabChanged { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+
+    private async Task SelectTab(string key)
+    {
+        ActiveTab = key;
+        await ActiveTabChanged.InvokeAsync(key);
+    }
+}
