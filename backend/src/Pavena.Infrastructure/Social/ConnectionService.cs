@@ -127,7 +127,33 @@ public class ConnectionService : IConnectionService
             .OrderByDescending(c => c.RequestedAtUtc)
             .ToListAsync(cancellationToken);
 
-        return requests.Select(MapToDto).ToList();
+        var requesterIds = requests.Select(r => r.RequesterUserId).Distinct().ToList();
+        var profiles = await _dbContext.UserProfiles
+            .AsNoTracking()
+            .Where(p => requesterIds.Contains(p.UserId))
+            .ToDictionaryAsync(p => p.UserId, cancellationToken);
+        var users = await _dbContext.Users
+            .AsNoTracking()
+            .Where(u => requesterIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, cancellationToken);
+
+        return requests.Select(r =>
+        {
+            profiles.TryGetValue(r.RequesterUserId, out var p);
+            users.TryGetValue(r.RequesterUserId, out var u);
+            return new ConnectionDto(
+                r.Id,
+                r.RequesterUserId,
+                r.AddresseeUserId,
+                r.Status.ToString(),
+                r.RequestedAtUtc,
+                r.RespondedAtUtc,
+                RequesterDisplayName: p?.DisplayName,
+                RequesterAvatarUrl: p?.AvatarUrl,
+                RequesterHeadline: p?.Headline,
+                RequesterUsername: u?.UserName
+            );
+        }).ToList();
     }
 
     public async Task<IReadOnlyList<ConnectionDto>> GetOutgoingRequestsAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -138,7 +164,33 @@ public class ConnectionService : IConnectionService
             .OrderByDescending(c => c.RequestedAtUtc)
             .ToListAsync(cancellationToken);
 
-        return requests.Select(MapToDto).ToList();
+        var addresseeIds = requests.Select(r => r.AddresseeUserId).Distinct().ToList();
+        var profiles = await _dbContext.UserProfiles
+            .AsNoTracking()
+            .Where(p => addresseeIds.Contains(p.UserId))
+            .ToDictionaryAsync(p => p.UserId, cancellationToken);
+        var users = await _dbContext.Users
+            .AsNoTracking()
+            .Where(u => addresseeIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, cancellationToken);
+
+        return requests.Select(r =>
+        {
+            profiles.TryGetValue(r.AddresseeUserId, out var p);
+            users.TryGetValue(r.AddresseeUserId, out var u);
+            return new ConnectionDto(
+                r.Id,
+                r.RequesterUserId,
+                r.AddresseeUserId,
+                r.Status.ToString(),
+                r.RequestedAtUtc,
+                r.RespondedAtUtc,
+                AddresseeDisplayName: p?.DisplayName,
+                AddresseeAvatarUrl: p?.AvatarUrl,
+                AddresseeHeadline: p?.Headline,
+                AddresseeUsername: u?.UserName
+            );
+        }).ToList();
     }
 
     public async Task<IReadOnlyList<ConnectionUserDto>> GetAcceptedConnectionsAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -158,18 +210,25 @@ public class ConnectionService : IConnectionService
             .Where(p => otherUserIds.Contains(p.UserId))
             .ToDictionaryAsync(p => p.UserId, cancellationToken);
 
+        var users = await _dbContext.Users
+            .AsNoTracking()
+            .Where(u => otherUserIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, cancellationToken);
+
         var result = new List<ConnectionUserDto>();
         foreach (var conn in connections)
         {
             var otherId = conn.GetOtherUserId(userId);
             if (profiles.TryGetValue(otherId, out var profile))
             {
+                users.TryGetValue(otherId, out var user);
                 result.Add(new ConnectionUserDto(
                     otherId,
                     profile.DisplayName,
                     profile.Headline,
                     profile.AvatarUrl,
-                    conn.RespondedAtUtc ?? conn.RequestedAtUtc
+                    conn.RespondedAtUtc ?? conn.RequestedAtUtc,
+                    user?.UserName
                 ));
             }
         }

@@ -1,0 +1,267 @@
+@page "/network/discover"
+@page "/discover"
+@namespace Pavena.Web.Pages
+@using Pavena.Application.Social.DTOs
+@using Pavena.Web.Components.Network
+@using Pavena.Web.Components.UI
+@using Pavena.Web.Services.Profile
+@using Pavena.Web.Services.Toast
+@inject IAcademicProfileClient ProfileClient
+@inject IToastService ToastService
+
+<PageTitle>Eksplorasi Peneliti — Pavena</PageTitle>
+
+<div class="pv-network-container">
+    <!-- Network Navigation Tabs -->
+    <NetworkNavTabs ActiveTab="discover" />
+
+    <!-- Page Title & Header -->
+    <div class="pv-network-header">
+        <div class="pv-network-title-row">
+            <div>
+                <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--pv-color-text); margin: 0 0 4px;">
+                    Eksplorasi & Temukan Peneliti
+                </h2>
+                <p style="font-size: 0.875rem; color: var(--pv-color-text-muted); margin: 0;">
+                    Temukan rekan saintis, akademisi lintas lembaga, dan kolaborator riset berdasarkan bidang keilmuan.
+                </p>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="pv-network-filter-bar">
+            <!-- Search by Name/Handle -->
+            <div style="flex: 1.5; min-width: 220px;">
+                <input type="text"
+                       class="pv-input pv-input-sm"
+                       placeholder="Cari nama peneliti atau topik..."
+                       value="@searchQuery"
+                       @oninput="HandleSearchInput" />
+            </div>
+
+            <!-- Filter by Institution -->
+            <div style="flex: 1; min-width: 180px;">
+                <input type="text"
+                       class="pv-input pv-input-sm"
+                       placeholder="Filter institusi (cth: Sorbonne)..."
+                       value="@institutionFilter"
+                       @oninput="HandleInstitutionInput" />
+            </div>
+
+            <!-- Filter by Expertise -->
+            <div style="flex: 1; min-width: 180px;">
+                <input type="text"
+                       class="pv-input pv-input-sm"
+                       placeholder="Keahlian (cth: Quantum)..."
+                       value="@expertiseFilter"
+                       @oninput="HandleExpertiseInput" />
+            </div>
+
+            @if (HasActiveFilters)
+            {
+                <PvButton Variant="ghost" Size="sm" OnClick="ResetFilters">
+                    <span>Reset</span>
+                </PvButton>
+            }
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    @if (isLoading)
+    {
+        <PvLoading Text="Mencari peneliti di jejaring Pavena..." />
+    }
+    else if (hasError)
+    {
+        <PvErrorState Title="Gagal Memuat Daftar Peneliti"
+                      Description="Terjadi kendala saat menghubungkan ke server discovery. Silakan periksa koneksi Anda."
+                      RetryText="Coba Lagi"
+                      OnRetry="LoadResearchersAsync" />
+    }
+    else if (researchers == null || !researchers.Any())
+    {
+        <PvEmptyState Title="Tidak ada peneliti yang sesuai"
+                      Description="Coba ubah kata kunci pencarian, nama institusi, atau filter keahlian yang Anda masukkan." />
+    }
+    else
+    {
+        <div class="pv-network-grid">
+            @foreach (var researcher in researchers)
+            {
+                <ResearcherCard Researcher="@researcher"
+                                OnConnect="HandleConnect"
+                                OnCancelConnect="HandleCancelConnect"
+                                OnAcceptConnect="HandleAcceptConnect"
+                                OnFollow="HandleFollow"
+                                OnUnfollow="HandleUnfollow" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<ResearcherDiscoveryDto>? researchers;
+    private bool isLoading = true;
+    private bool hasError = false;
+
+    private string searchQuery = "";
+    private string institutionFilter = "";
+    private string expertiseFilter = "";
+    private System.Timers.Timer? debounceTimer;
+
+    private bool HasActiveFilters => !string.IsNullOrWhiteSpace(searchQuery) ||
+                                     !string.IsNullOrWhiteSpace(institutionFilter) ||
+                                     !string.IsNullOrWhiteSpace(expertiseFilter);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadResearchersAsync();
+    }
+
+    private async Task LoadResearchersAsync()
+    {
+        isLoading = true;
+        hasError = false;
+        try
+        {
+            researchers = await ProfileClient.GetDiscoverResearchersAsync(
+                query: string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery,
+                institution: string.IsNullOrWhiteSpace(institutionFilter) ? null : institutionFilter,
+                expertise: string.IsNullOrWhiteSpace(expertiseFilter) ? null : expertiseFilter
+            );
+        }
+        catch (Exception ex)
+        {
+            hasError = true;
+            ToastService.ShowError($"Gagal memuat peneliti: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void HandleSearchInput(ChangeEventArgs e)
+    {
+        searchQuery = e.Value?.ToString() ?? "";
+        TriggerDebounce();
+    }
+
+    private void HandleInstitutionInput(ChangeEventArgs e)
+    {
+        institutionFilter = e.Value?.ToString() ?? "";
+        TriggerDebounce();
+    }
+
+    private void HandleExpertiseInput(ChangeEventArgs e)
+    {
+        expertiseFilter = e.Value?.ToString() ?? "";
+        TriggerDebounce();
+    }
+
+    private void TriggerDebounce()
+    {
+        debounceTimer?.Stop();
+        debounceTimer?.Dispose();
+        debounceTimer = new System.Timers.Timer(350);
+        debounceTimer.AutoReset = false;
+        debounceTimer.Elapsed += async (_, _) =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadResearchersAsync();
+                StateHasChanged();
+            });
+        };
+        debounceTimer.Start();
+    }
+
+    private async Task ResetFilters()
+    {
+        searchQuery = "";
+        institutionFilter = "";
+        expertiseFilter = "";
+        await LoadResearchersAsync();
+    }
+
+    private async Task HandleConnect(Guid targetUserId)
+    {
+        var ok = await ProfileClient.SendConnectionRequestAsync(targetUserId);
+        if (ok)
+        {
+            ToastService.ShowSuccess("Permintaan koneksi berhasil dikirim.");
+            UpdateResearcherState(targetUserId, connStatus: "PendingOutgoing");
+        }
+        else
+        {
+            ToastService.ShowError("Gagal mengirim permintaan koneksi.");
+        }
+    }
+
+    private async Task HandleCancelConnect(Guid targetUserId)
+    {
+        var ok = await ProfileClient.CancelConnectionRequestAsync(Guid.NewGuid());
+        if (ok)
+        {
+            ToastService.ShowInfo("Permintaan koneksi dibatalkan.");
+            UpdateResearcherState(targetUserId, connStatus: "None");
+        }
+    }
+
+    private async Task HandleAcceptConnect(Guid targetUserId)
+    {
+        var ok = await ProfileClient.AcceptConnectionRequestAsync(Guid.NewGuid());
+        if (ok)
+        {
+            ToastService.ShowSuccess("Koneksi berhasil diterima.");
+            UpdateResearcherState(targetUserId, connStatus: "Accepted");
+        }
+    }
+
+    private async Task HandleFollow(Guid targetUserId)
+    {
+        var ok = await ProfileClient.FollowUserAsync(targetUserId);
+        if (ok)
+        {
+            ToastService.ShowSuccess("Berhasil mengikuti peneliti.");
+            UpdateResearcherState(targetUserId, isFollowing: true);
+        }
+        else
+        {
+            ToastService.ShowError("Gagal mengikuti peneliti.");
+        }
+    }
+
+    private async Task HandleUnfollow(Guid targetUserId)
+    {
+        var ok = await ProfileClient.UnfollowUserAsync(targetUserId);
+        if (ok)
+        {
+            ToastService.ShowInfo("Berhenti mengikuti peneliti.");
+            UpdateResearcherState(targetUserId, isFollowing: false);
+        }
+    }
+
+    private void UpdateResearcherState(Guid targetUserId, string? connStatus = null, bool? isFollowing = null)
+    {
+        if (researchers == null) return;
+        var list = new List<ResearcherDiscoveryDto>();
+        foreach (var r in researchers)
+        {
+            if (r.UserId == targetUserId)
+            {
+                list.Add(r with
+                {
+                    ConnectionStatus = connStatus ?? r.ConnectionStatus,
+                    IsFollowing = isFollowing ?? r.IsFollowing,
+                    ConnectionsCount = connStatus == "Accepted" ? r.ConnectionsCount + 1 : r.ConnectionsCount
+                });
+            }
+            else
+            {
+                list.Add(r);
+            }
+        }
+        researchers = list;
+    }
+}

@@ -17,6 +17,13 @@ public class AcademicProfileClient : IAcademicProfileClient
 
     // Fallback in-memory state for standalone / offline UI preview
     private AcademicProfileDto? _previewProfile;
+    private readonly List<ResearcherDiscoveryDto> _previewDiscoveries = new();
+    private readonly List<ConnectionUserDto> _previewConnections = new();
+    private readonly List<ConnectionDto> _previewIncomingRequests = new();
+    private readonly List<ConnectionDto> _previewOutgoingRequests = new();
+    private readonly List<FollowUserDto> _previewFollowing = new();
+    private readonly List<FollowUserDto> _previewFollowers = new();
+    private readonly List<BlockedUserDto> _previewBlocked = new();
 
     public AcademicProfileClient(
         HttpClient httpClient,
@@ -376,6 +383,125 @@ public class AcademicProfileClient : IAcademicProfileClient
         }
     }
 
+    // =========================================================================
+    // RESEARCHER DISCOVERY
+    // =========================================================================
+
+    public async Task<IReadOnlyList<ResearcherDiscoveryDto>> GetDiscoverResearchersAsync(
+        string? query = null,
+        string? institution = null,
+        string? expertise = null,
+        int limit = 20,
+        int offset = 0,
+        CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var uri = $"api/v1/users/discover?limit={limit}&offset={offset}";
+            if (!string.IsNullOrWhiteSpace(query)) uri += $"&q={Uri.EscapeDataString(query)}";
+            if (!string.IsNullOrWhiteSpace(institution)) uri += $"&institution={Uri.EscapeDataString(institution)}";
+            if (!string.IsNullOrWhiteSpace(expertise)) uri += $"&expertise={Uri.EscapeDataString(expertise)}";
+
+            var response = await _httpClient.GetAsync(uri, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var list = await response.Content.ReadFromJsonAsync<List<ResearcherDiscoveryDto>>(_jsonOptions, cancellationToken);
+                return list ?? (IReadOnlyList<ResearcherDiscoveryDto>)Array.Empty<ResearcherDiscoveryDto>();
+            }
+
+            _logger?.LogWarning("GetDiscoverResearchers returned {StatusCode}", response.StatusCode);
+            return FilterPreviewDiscoveries(query, institution, expertise);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to GetDiscoverResearchers. Returning preview data.");
+            return FilterPreviewDiscoveries(query, institution, expertise);
+        }
+    }
+
+    // =========================================================================
+    // CONNECTIONS & REQUESTS
+    // =========================================================================
+
+    public async Task<IReadOnlyList<ConnectionUserDto>> GetAcceptedConnectionsAsync(CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.GetAsync("api/v1/connections", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<List<ConnectionUserDto>>(_jsonOptions, cancellationToken) ?? new List<ConnectionUserDto>();
+            }
+            return _previewConnections;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to GetAcceptedConnections. Returning preview connections.");
+            return _previewConnections;
+        }
+    }
+
+    public async Task<bool> RemoveConnectionAsync(Guid targetUserId, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"api/v1/connections/{targetUserId}", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                _previewConnections.RemoveAll(c => c.UserId == targetUserId);
+                return true;
+            }
+            return false;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to RemoveConnection. Emulating success in preview.");
+            _previewConnections.RemoveAll(c => c.UserId == targetUserId);
+            return true;
+        }
+    }
+
+    public async Task<IReadOnlyList<ConnectionDto>> GetIncomingConnectionRequestsAsync(CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.GetAsync("api/v1/connections/requests/incoming", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<List<ConnectionDto>>(_jsonOptions, cancellationToken) ?? new List<ConnectionDto>();
+            }
+            return _previewIncomingRequests;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to GetIncomingConnectionRequests. Returning preview requests.");
+            return _previewIncomingRequests;
+        }
+    }
+
+    public async Task<IReadOnlyList<ConnectionDto>> GetOutgoingConnectionRequestsAsync(CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.GetAsync("api/v1/connections/requests/outgoing", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<List<ConnectionDto>>(_jsonOptions, cancellationToken) ?? new List<ConnectionDto>();
+            }
+            return _previewOutgoingRequests;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to GetOutgoingConnectionRequests. Returning preview requests.");
+            return _previewOutgoingRequests;
+        }
+    }
+
     public async Task<bool> SendConnectionRequestAsync(Guid targetUserId, CancellationToken cancellationToken = default)
     {
         SetAuthorizationHeader();
@@ -397,11 +523,17 @@ public class AcademicProfileClient : IAcademicProfileClient
         try
         {
             var response = await _httpClient.DeleteAsync($"api/v1/connections/requests/{requestId}", cancellationToken);
-            return response.IsSuccessStatusCode;
+            if (response.IsSuccessStatusCode)
+            {
+                _previewOutgoingRequests.RemoveAll(r => r.Id == requestId);
+                return true;
+            }
+            return false;
         }
         catch (HttpRequestException ex)
         {
             _logger?.LogWarning(ex, "HTTP call failed to CancelConnectionRequest. Emulating success in preview.");
+            _previewOutgoingRequests.RemoveAll(r => r.Id == requestId);
             return true;
         }
     }
@@ -412,12 +544,83 @@ public class AcademicProfileClient : IAcademicProfileClient
         try
         {
             var response = await _httpClient.PostAsync($"api/v1/connections/requests/{requestId}/accept", null, cancellationToken);
-            return response.IsSuccessStatusCode;
+            if (response.IsSuccessStatusCode)
+            {
+                _previewIncomingRequests.RemoveAll(r => r.Id == requestId);
+                return true;
+            }
+            return false;
         }
         catch (HttpRequestException ex)
         {
             _logger?.LogWarning(ex, "HTTP call failed to AcceptConnectionRequest. Emulating success in preview.");
+            _previewIncomingRequests.RemoveAll(r => r.Id == requestId);
             return true;
+        }
+    }
+
+    public async Task<bool> RejectConnectionRequestAsync(Guid requestId, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.PostAsync($"api/v1/connections/requests/{requestId}/reject", null, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                _previewIncomingRequests.RemoveAll(r => r.Id == requestId);
+                return true;
+            }
+            return false;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to RejectConnectionRequest. Emulating success in preview.");
+            _previewIncomingRequests.RemoveAll(r => r.Id == requestId);
+            return true;
+        }
+    }
+
+    // =========================================================================
+    // FOLLOWING & FOLLOWERS
+    // =========================================================================
+
+    public async Task<IReadOnlyList<FollowUserDto>> GetFollowingAsync(Guid? userId = null, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        var targetId = userId ?? _sessionService.CurrentUserId;
+        try
+        {
+            var response = await _httpClient.GetAsync($"api/v1/users/{targetId}/following", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<List<FollowUserDto>>(_jsonOptions, cancellationToken) ?? new List<FollowUserDto>();
+            }
+            return _previewFollowing;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to GetFollowing. Returning preview following.");
+            return _previewFollowing;
+        }
+    }
+
+    public async Task<IReadOnlyList<FollowUserDto>> GetFollowersAsync(Guid? userId = null, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        var targetId = userId ?? _sessionService.CurrentUserId;
+        try
+        {
+            var response = await _httpClient.GetAsync($"api/v1/users/{targetId}/followers", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<List<FollowUserDto>>(_jsonOptions, cancellationToken) ?? new List<FollowUserDto>();
+            }
+            return _previewFollowers;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to GetFollowers. Returning preview followers.");
+            return _previewFollowers;
         }
     }
 
@@ -442,14 +645,93 @@ public class AcademicProfileClient : IAcademicProfileClient
         try
         {
             var response = await _httpClient.DeleteAsync($"api/v1/users/{targetUserId}/follow", cancellationToken);
-            return response.IsSuccessStatusCode;
+            if (response.IsSuccessStatusCode)
+            {
+                _previewFollowing.RemoveAll(f => f.UserId == targetUserId);
+                return true;
+            }
+            return false;
         }
         catch (HttpRequestException ex)
         {
             _logger?.LogWarning(ex, "HTTP call failed to UnfollowUser. Emulating success in preview.");
+            _previewFollowing.RemoveAll(f => f.UserId == targetUserId);
             return true;
         }
     }
+
+    // =========================================================================
+    // BLOCKING
+    // =========================================================================
+
+    public async Task<IReadOnlyList<BlockedUserDto>> GetBlockedUsersAsync(CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.GetAsync("api/v1/users/me/blocks", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<List<BlockedUserDto>>(_jsonOptions, cancellationToken) ?? new List<BlockedUserDto>();
+            }
+            return _previewBlocked;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to GetBlockedUsers. Returning preview blocked users.");
+            return _previewBlocked;
+        }
+    }
+
+    public async Task<bool> BlockUserAsync(Guid targetUserId, string? reason = null, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync($"api/v1/users/{targetUserId}/block", new BlockUserRequest(reason), _jsonOptions, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                _previewConnections.RemoveAll(c => c.UserId == targetUserId);
+                _previewFollowing.RemoveAll(f => f.UserId == targetUserId);
+                _previewFollowers.RemoveAll(f => f.UserId == targetUserId);
+                _previewIncomingRequests.RemoveAll(r => r.RequesterUserId == targetUserId);
+                _previewOutgoingRequests.RemoveAll(r => r.AddresseeUserId == targetUserId);
+                return true;
+            }
+            return false;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to BlockUser. Emulating success in preview.");
+            _previewConnections.RemoveAll(c => c.UserId == targetUserId);
+            return true;
+        }
+    }
+
+    public async Task<bool> UnblockUserAsync(Guid targetUserId, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"api/v1/users/{targetUserId}/block", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                _previewBlocked.RemoveAll(b => b.UserId == targetUserId);
+                return true;
+            }
+            return false;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to UnblockUser. Emulating success in preview.");
+            _previewBlocked.RemoveAll(b => b.UserId == targetUserId);
+            return true;
+        }
+    }
+
+    // =========================================================================
+    // PREVIEW DATA INITIALIZATION
+    // =========================================================================
 
     private void InitPreviewData()
     {
@@ -501,6 +783,168 @@ public class AcademicProfileClient : IAcademicProfileClient
             IsFollowing: false,
             CanEdit: true
         );
+
+        // Preview discoveries
+        _previewDiscoveries.AddRange(new[]
+        {
+            new ResearcherDiscoveryDto(
+                Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                "alan_turing",
+                "Dr. Alan Turing",
+                "Reader in Mathematics & Computing Pioneer | Fellow of the Royal Society",
+                null,
+                "University of Manchester",
+                true,
+                new[] { "Cryptanalysis", "Theoretical Computer Science", "Mathematical Logic" },
+                9,
+                312,
+                "None",
+                false
+            ),
+            new ResearcherDiscoveryDto(
+                Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                "ada_lovelace",
+                "Countess Ada Lovelace",
+                "Computational Mathematician & Visionary of Analytical Engines",
+                null,
+                "Royal Scientific Society",
+                true,
+                new[] { "Algorithmic Design", "Bernoulli Computation", "Symbolic Math" },
+                6,
+                245,
+                "PendingOutgoing",
+                true
+            ),
+            new ResearcherDiscoveryDto(
+                Guid.Parse("44444444-4444-4444-4444-444444444444"),
+                "niels_bohr",
+                "Prof. Niels Bohr",
+                "Theoretical Physicist | Quantum Mechanics & Atomic Model",
+                null,
+                "University of Copenhagen",
+                true,
+                new[] { "Quantum Mechanics", "Atomic Models", "Complementarity Principle" },
+                18,
+                580,
+                "PendingIncoming",
+                false
+            ),
+            new ResearcherDiscoveryDto(
+                Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                "rosalind_franklin",
+                "Dr. Rosalind Franklin",
+                "Biophysicist & Crystallographer | DNA B-Form Structure",
+                null,
+                "King's College London",
+                true,
+                new[] { "X-Ray Crystallography", "Molecular Biology", "Diffraction Analysis" },
+                12,
+                390,
+                "Accepted",
+                true
+            )
+        });
+
+        // Preview connections
+        _previewConnections.Add(new ConnectionUserDto(
+            Guid.Parse("55555555-5555-5555-5555-555555555555"),
+            "Dr. Rosalind Franklin",
+            "Biophysicist & Crystallographer | King's College London",
+            null,
+            DateTime.UtcNow.AddMonths(-3),
+            "rosalind_franklin"
+        ));
+
+        // Preview incoming requests
+        _previewIncomingRequests.Add(new ConnectionDto(
+            Guid.NewGuid(),
+            Guid.Parse("44444444-4444-4444-4444-444444444444"),
+            _sessionService.CurrentUserId,
+            "Pending",
+            DateTime.UtcNow.AddDays(-2),
+            null,
+            RequesterDisplayName: "Prof. Niels Bohr",
+            RequesterHeadline: "Theoretical Physicist | University of Copenhagen",
+            RequesterUsername: "niels_bohr"
+        ));
+
+        // Preview outgoing requests
+        _previewOutgoingRequests.Add(new ConnectionDto(
+            Guid.NewGuid(),
+            _sessionService.CurrentUserId,
+            Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            "Pending",
+            DateTime.UtcNow.AddDays(-5),
+            null,
+            AddresseeDisplayName: "Countess Ada Lovelace",
+            AddresseeHeadline: "Computational Mathematician | Royal Scientific Society",
+            AddresseeUsername: "ada_lovelace"
+        ));
+
+        // Preview following
+        _previewFollowing.Add(new FollowUserDto(
+            Guid.Parse("55555555-5555-5555-5555-555555555555"),
+            "Dr. Rosalind Franklin",
+            "Biophysicist & Crystallographer | King's College London",
+            null,
+            DateTime.UtcNow.AddMonths(-2),
+            "rosalind_franklin"
+        ));
+        _previewFollowing.Add(new FollowUserDto(
+            Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            "Countess Ada Lovelace",
+            "Computational Mathematician | Royal Scientific Society",
+            null,
+            DateTime.UtcNow.AddMonths(-1),
+            "ada_lovelace"
+        ));
+
+        // Preview followers
+        _previewFollowers.Add(new FollowUserDto(
+            Guid.Parse("55555555-5555-5555-5555-555555555555"),
+            "Dr. Rosalind Franklin",
+            "Biophysicist & Crystallographer | King's College London",
+            null,
+            DateTime.UtcNow.AddMonths(-2),
+            "rosalind_franklin"
+        ));
+
+        // Preview blocked
+        _previewBlocked.Add(new BlockedUserDto(
+            Guid.Parse("99999999-9999-9999-9999-999999999999"),
+            "Prof. Pseudoscientist",
+            null,
+            "Spam naskah tidak ilmiah berulang.",
+            DateTime.UtcNow.AddMonths(-4),
+            "pseudoscience_lab"
+        ));
+    }
+
+    private IReadOnlyList<ResearcherDiscoveryDto> FilterPreviewDiscoveries(string? query, string? institution, string? expertise)
+    {
+        var list = _previewDiscoveries.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var q = query.Trim().ToLower();
+            list = list.Where(r => r.DisplayName.ToLower().Contains(q) ||
+                                  r.Username.ToLower().Contains(q) ||
+                                  (r.Headline != null && r.Headline.ToLower().Contains(q)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(institution))
+        {
+            var inst = institution.Trim().ToLower();
+            list = list.Where(r => r.PrimaryAffiliation != null && r.PrimaryAffiliation.ToLower().Contains(inst));
+        }
+
+        if (!string.IsNullOrWhiteSpace(expertise))
+        {
+            var exp = expertise.Trim().ToLower();
+            list = list.Where(r => r.TopSkills.Any(s => s.ToLower().Contains(exp)));
+        }
+
+        return list.ToList();
     }
 
     private static AcademicProfileDto CreateColleaguePreview(string identifier)

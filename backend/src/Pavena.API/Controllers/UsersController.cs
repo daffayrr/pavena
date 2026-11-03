@@ -77,6 +77,20 @@ public class UsersController : ControllerBase
         return Ok(updated);
     }
 
+    [HttpGet("discover")]
+    public async Task<IActionResult> DiscoverResearchers(
+        [FromQuery] string? q,
+        [FromQuery] string? institution,
+        [FromQuery] string? expertise,
+        [FromQuery] int limit = 20,
+        [FromQuery] int offset = 0,
+        CancellationToken cancellationToken = default)
+    {
+        var callerId = GetCurrentUserId();
+        var researchers = await _profileService.DiscoverResearchersAsync(callerId, q, institution, expertise, limit, offset, cancellationToken);
+        return Ok(researchers);
+    }
+
     [HttpGet("{identifier}/academic-profile")]
     public async Task<IActionResult> GetAcademicProfile(string identifier, CancellationToken cancellationToken)
     {

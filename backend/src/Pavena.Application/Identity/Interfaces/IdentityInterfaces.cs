@@ -1,4 +1,5 @@
 using Pavena.Application.Identity.DTOs;
+using Pavena.Application.Social.DTOs;
 
 namespace Pavena.Application.Identity.Interfaces;
 
@@ -28,6 +29,14 @@ public interface IUserProfileService
     Task<bool> DeleteExperienceAsync(Guid userId, Guid experienceId, CancellationToken cancellationToken = default);
     Task<UserSkillDto> AddSkillAsync(Guid userId, string skillName, CancellationToken cancellationToken = default);
     Task<bool> DeleteSkillAsync(Guid userId, Guid skillId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ResearcherDiscoveryDto>> DiscoverResearchersAsync(
+        Guid? callerUserId,
+        string? query = null,
+        string? institution = null,
+        string? expertise = null,
+        int limit = 20,
+        int offset = 0,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ICurrentUserService

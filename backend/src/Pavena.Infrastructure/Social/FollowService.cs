@@ -76,17 +76,24 @@ public class FollowService : IFollowService
             .Where(p => followerIds.Contains(p.UserId))
             .ToDictionaryAsync(p => p.UserId, cancellationToken);
 
+        var users = await _dbContext.Users
+            .AsNoTracking()
+            .Where(u => followerIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, cancellationToken);
+
         var result = new List<FollowUserDto>();
         foreach (var follow in follows)
         {
             if (profiles.TryGetValue(follow.FollowerUserId, out var profile))
             {
+                users.TryGetValue(follow.FollowerUserId, out var user);
                 result.Add(new FollowUserDto(
                     follow.FollowerUserId,
                     profile.DisplayName,
                     profile.Headline,
                     profile.AvatarUrl,
-                    follow.CreatedAtUtc
+                    follow.CreatedAtUtc,
+                    user?.UserName
                 ));
             }
         }
@@ -109,17 +116,24 @@ public class FollowService : IFollowService
             .Where(p => targetUserIds.Contains(p.UserId))
             .ToDictionaryAsync(p => p.UserId, cancellationToken);
 
+        var users = await _dbContext.Users
+            .AsNoTracking()
+            .Where(u => targetUserIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, cancellationToken);
+
         var result = new List<FollowUserDto>();
         foreach (var follow in follows)
         {
             if (profiles.TryGetValue(follow.TargetId, out var profile))
             {
+                users.TryGetValue(follow.TargetId, out var user);
                 result.Add(new FollowUserDto(
                     follow.TargetId,
                     profile.DisplayName,
                     profile.Headline,
                     profile.AvatarUrl,
-                    follow.CreatedAtUtc
+                    follow.CreatedAtUtc,
+                    user?.UserName
                 ));
             }
         }

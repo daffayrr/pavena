@@ -1,0 +1,168 @@
+@namespace Pavena.Web.Components.Network
+@using Pavena.Application.Social.DTOs
+@using Pavena.Web.Components.UI
+
+<div class="pv-researcher-card">
+    <div class="pv-researcher-banner"></div>
+
+    <div class="pv-researcher-body">
+        <div class="pv-researcher-avatar-row">
+            <div class="pv-researcher-avatar-box">
+                <PvAvatar Name="@Researcher.DisplayName" ImageUrl="@Researcher.AvatarUrl" Size="lg" Status="online" />
+            </div>
+
+            @if (Researcher.IsVerified)
+            {
+                <span class="pv-pill-verified" title="Peneliti Terverifikasi Institusi">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    <span>Terverifikasi</span>
+                </span>
+            }
+        </div>
+
+        <a href="@ProfileUrl" class="pv-researcher-name" title="@Researcher.DisplayName">
+            <span>@Researcher.DisplayName</span>
+        </a>
+
+        <div class="pv-researcher-handle">
+            @@@Researcher.Username
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Researcher.Headline))
+        {
+            <div class="pv-researcher-headline" title="@Researcher.Headline">
+                @Researcher.Headline
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Researcher.PrimaryAffiliation))
+        {
+            <div class="pv-researcher-affiliation" title="Afiliasi Lembaga">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 21h18"></path>
+                    <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"></path>
+                </svg>
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@Researcher.PrimaryAffiliation</span>
+            </div>
+        }
+
+        <div class="pv-researcher-skills">
+            @if (Researcher.TopSkills != null && Researcher.TopSkills.Any())
+            {
+                @foreach (var skill in Researcher.TopSkills)
+                {
+                    <span class="pv-skill-chip" style="font-size: 0.6875rem; padding: 2px 8px;">
+                        @skill
+                    </span>
+                }
+            }
+        </div>
+
+        <div class="pv-researcher-meta-row">
+            <span><strong>@Researcher.PublicationsCount</strong> Publikasi</span>
+            <span><strong>@Researcher.ConnectionsCount</strong> Rekan</span>
+        </div>
+
+        <div class="pv-researcher-actions">
+            <!-- Connection Action -->
+            @if (Researcher.ConnectionStatus == "Accepted")
+            {
+                <PvButton Variant="secondary" Size="sm" Disabled="true">
+                    <span>Terhubung</span>
+                </PvButton>
+            }
+            else if (Researcher.ConnectionStatus == "PendingOutgoing")
+            {
+                <PvButton Variant="outline" Size="sm" IsLoading="@isActionBusy" OnClick="() => HandleCancelConnect(Researcher.UserId)">
+                    <span>Batalkan</span>
+                </PvButton>
+            }
+            else if (Researcher.ConnectionStatus == "PendingIncoming")
+            {
+                <PvButton Variant="primary" Size="sm" IsLoading="@isActionBusy" OnClick="() => HandleAcceptConnect(Researcher.UserId)">
+                    <span>Terima</span>
+                </PvButton>
+            }
+            else
+            {
+                <PvButton Variant="primary" Size="sm" IsLoading="@isActionBusy" OnClick="() => HandleConnect(Researcher.UserId)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>Koneksikan</span>
+                </PvButton>
+            }
+
+            <!-- Follow / Unfollow Action -->
+            @if (Researcher.IsFollowing)
+            {
+                <PvButton Variant="outline" Size="sm" IsLoading="@isActionBusy" OnClick="() => HandleUnfollow(Researcher.UserId)">
+                    <span>Mengikuti</span>
+                </PvButton>
+            }
+            else
+            {
+                <PvButton Variant="ghost" Size="sm" IsLoading="@isActionBusy" OnClick="() => HandleFollow(Researcher.UserId)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7" r="4"></circle>
+                        <polyline points="17 11 19 13 23 9"></polyline>
+                    </svg>
+                    <span>Ikuti</span>
+                </PvButton>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public ResearcherDiscoveryDto Researcher { get; set; } = default!;
+    [Parameter] public EventCallback<Guid> OnConnect { get; set; }
+    [Parameter] public EventCallback<Guid> OnCancelConnect { get; set; }
+    [Parameter] public EventCallback<Guid> OnAcceptConnect { get; set; }
+    [Parameter] public EventCallback<Guid> OnFollow { get; set; }
+    [Parameter] public EventCallback<Guid> OnUnfollow { get; set; }
+
+    private bool isActionBusy = false;
+    private string ProfileUrl => !string.IsNullOrWhiteSpace(Researcher.Username)
+        ? $"/scholars/{Researcher.Username}"
+        : $"/scholars/{Researcher.UserId}";
+
+    private async Task HandleConnect(Guid userId)
+    {
+        isActionBusy = true;
+        try { await OnConnect.InvokeAsync(userId); }
+        finally { isActionBusy = false; }
+    }
+
+    private async Task HandleCancelConnect(Guid userId)
+    {
+        isActionBusy = true;
+        try { await OnCancelConnect.InvokeAsync(userId); }
+        finally { isActionBusy = false; }
+    }
+
+    private async Task HandleAcceptConnect(Guid userId)
+    {
+        isActionBusy = true;
+        try { await OnAcceptConnect.InvokeAsync(userId); }
+        finally { isActionBusy = false; }
+    }
+
+    private async Task HandleFollow(Guid userId)
+    {
+        isActionBusy = true;
+        try { await OnFollow.InvokeAsync(userId); }
+        finally { isActionBusy = false; }
+    }
+
+    private async Task HandleUnfollow(Guid userId)
+    {
+        isActionBusy = true;
+        try { await OnUnfollow.InvokeAsync(userId); }
+        finally { isActionBusy = false; }
+    }
+}

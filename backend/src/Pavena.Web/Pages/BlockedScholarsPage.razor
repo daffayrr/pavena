@@ -1,0 +1,106 @@
+@page "/network/blocked"
+@namespace Pavena.Web.Pages
+@using Pavena.Application.Social.DTOs
+@using Pavena.Web.Components.Network
+@using Pavena.Web.Components.UI
+@using Pavena.Web.Services.Profile
+@using Pavena.Web.Services.Toast
+@inject IAcademicProfileClient ProfileClient
+@inject IToastService ToastService
+
+<PageTitle>Pengguna Diblokir — Pavena</PageTitle>
+
+<div class="pv-network-container">
+    <!-- Network Navigation Tabs -->
+    <NetworkNavTabs ActiveTab="blocked" />
+
+    <!-- Page Header -->
+    <div class="pv-network-header">
+        <div class="pv-network-title-row">
+            <div>
+                <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--pv-color-text); margin: 0 0 4px; display: flex; align-items: center; gap: 8px;">
+                    <span>Daftar Pengguna Diblokir</span>
+                    @if (blockedList != null)
+                    {
+                        <PvBadge Variant="neutral">@blockedList.Count</PvBadge>
+                    }
+                </h2>
+                <p style="font-size: 0.875rem; color: var(--pv-color-text-muted); margin: 0;">
+                    Pengguna yang diblokir tidak dapat melihat profil, artikel, maupun mengirim permintaan koneksi kepada Anda.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    @if (isLoading)
+    {
+        <PvLoading Text="Memuat daftar pengguna yang diblokir..." />
+    }
+    else if (hasError)
+    {
+        <PvErrorState Title="Gagal Mengambil Data Blokir"
+                      Description="Tidak dapat menghubungi layanan privasi saat ini."
+                      RetryText="Coba Lagi"
+                      OnRetry="LoadBlockedUsersAsync" />
+    }
+    else if (blockedList == null || !blockedList.Any())
+    {
+        <PvEmptyState Title="Tidak ada pengguna yang diblokir"
+                      Description="Anda tidak memblokir akun siapa pun di jejaring Pavena." />
+    }
+    else
+    {
+        <div style="display: flex; flex-direction: column; gap: var(--pv-space-3);">
+            @foreach (var user in blockedList)
+            {
+                <BlockedUserCard BlockedUser="@user" OnUnblock="HandleUnblock" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<BlockedUserDto>? blockedList;
+    private bool isLoading = true;
+    private bool hasError = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBlockedUsersAsync();
+    }
+
+    private async Task LoadBlockedUsersAsync()
+    {
+        isLoading = true;
+        hasError = false;
+        try
+        {
+            var res = await ProfileClient.GetBlockedUsersAsync();
+            blockedList = res.ToList();
+        }
+        catch (Exception ex)
+        {
+            hasError = true;
+            ToastService.ShowError($"Gagal memuat daftar blokir: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleUnblock(Guid targetUserId)
+    {
+        var ok = await ProfileClient.UnblockUserAsync(targetUserId);
+        if (ok)
+        {
+            ToastService.ShowSuccess("Blokir berhasil dibuka.");
+            blockedList?.RemoveAll(u => u.UserId == targetUserId);
+        }
+        else
+        {
+            ToastService.ShowError("Gagal membuka blokir pengguna.");
+        }
+    }
+}

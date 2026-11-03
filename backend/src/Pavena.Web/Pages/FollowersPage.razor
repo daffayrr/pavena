@@ -1,0 +1,155 @@
+@page "/network/followers"
+@namespace Pavena.Web.Pages
+@using Pavena.Application.Social.DTOs
+@using Pavena.Web.Components.Network
+@using Pavena.Web.Components.UI
+@using Pavena.Web.Services.Profile
+@using Pavena.Web.Services.Toast
+@inject IAcademicProfileClient ProfileClient
+@inject IToastService ToastService
+
+<PageTitle>Pengikut — Pavena</PageTitle>
+
+<div class="pv-network-container">
+    <!-- Network Navigation Tabs -->
+    <NetworkNavTabs ActiveTab="followers" FollowersCount="@(followersList?.Count ?? 0)" />
+
+    <!-- Page Header & Filter -->
+    <div class="pv-network-header">
+        <div class="pv-network-title-row">
+            <div>
+                <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--pv-color-text); margin: 0 0 4px; display: flex; align-items: center; gap: 8px;">
+                    <span>Pengikut Anda</span>
+                    @if (followersList != null)
+                    {
+                        <PvBadge Variant="secondary">@FilteredFollowers.Count</PvBadge>
+                    }
+                </h2>
+                <p style="font-size: 0.875rem; color: var(--pv-color-text-muted); margin: 0;">
+                    Kolega dan pembaca yang berlangganan kabar kegiatan ilmiah dan publikasi terbuka Anda.
+                </p>
+            </div>
+        </div>
+
+        @if (followersList != null && followersList.Any())
+        {
+            <div style="max-width: 420px; margin-bottom: var(--pv-space-4);">
+                <input type="text"
+                       class="pv-input pv-input-sm"
+                       placeholder="Cari dalam daftar pengikut..."
+                       @bind="searchKeyword"
+                       @bind:event="oninput" />
+            </div>
+        }
+    </div>
+
+    <!-- Content Area -->
+    @if (isLoading)
+    {
+        <PvLoading Text="Memuat daftar pengikut Anda..." />
+    }
+    else if (hasError)
+    {
+        <PvErrorState Title="Gagal Mengambil Data Pengikut"
+                      Description="Tidak dapat menghubungi layanan follow saat ini."
+                      RetryText="Coba Lagi"
+                      OnRetry="LoadFollowersAsync" />
+    }
+    else if (!FilteredFollowers.Any())
+    {
+        @if (!string.IsNullOrWhiteSpace(searchKeyword))
+        {
+            <PvEmptyState Title="Tidak ditemukan"
+                          Description="Tidak ada pengikut yang cocok dengan kata kunci pencarian." />
+        }
+        else
+        {
+            <PvEmptyState Title="Belum ada pengikut"
+                          Description="Publikasikan naskah atau wawasan riset Anda untuk menarik rekan sejawat." />
+        }
+    }
+    else
+    {
+        <div style="display: flex; flex-direction: column; gap: var(--pv-space-3);">
+            @foreach (var user in FilteredFollowers)
+            {
+                <FollowCard User="@user"
+                            IsFollowingMode="false"
+                            IsFollowing="@followingIds.Contains(user.UserId)"
+                            OnToggleFollow="HandleToggleFollow" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<FollowUserDto>? followersList;
+    private HashSet<Guid> followingIds = new();
+    private bool isLoading = true;
+    private bool hasError = false;
+    private string searchKeyword = "";
+
+    private List<FollowUserDto> FilteredFollowers
+    {
+        get
+        {
+            if (followersList == null) return new List<FollowUserDto>();
+            if (string.IsNullOrWhiteSpace(searchKeyword)) return followersList;
+            var kw = searchKeyword.Trim().ToLowerInvariant();
+            return followersList.Where(u =>
+                u.DisplayName.ToLowerInvariant().Contains(kw) ||
+                (u.Headline != null && u.Headline.ToLowerInvariant().Contains(kw)) ||
+                (u.Username != null && u.Username.ToLowerInvariant().Contains(kw))
+            ).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFollowersAsync();
+    }
+
+    private async Task LoadFollowersAsync()
+    {
+        isLoading = true;
+        hasError = false;
+        try
+        {
+            var followers = await ProfileClient.GetFollowersAsync();
+            var following = await ProfileClient.GetFollowingAsync();
+            followersList = followers.ToList();
+            followingIds = following.Select(f => f.UserId).ToHashSet();
+        }
+        catch (Exception ex)
+        {
+            hasError = true;
+            ToastService.ShowError($"Gagal memuat daftar pengikut: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleToggleFollow(Guid targetUserId)
+    {
+        if (followingIds.Contains(targetUserId))
+        {
+            var ok = await ProfileClient.UnfollowUserAsync(targetUserId);
+            if (ok)
+            {
+                followingIds.Remove(targetUserId);
+                ToastService.ShowInfo("Berhenti mengikuti peneliti.");
+            }
+        }
+        else
+        {
+            var ok = await ProfileClient.FollowUserAsync(targetUserId);
+            if (ok)
+            {
+                followingIds.Add(targetUserId);
+                ToastService.ShowSuccess("Berhasil mengikuti balik peneliti.");
+            }
+        }
+    }
+}

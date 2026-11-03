@@ -98,16 +98,23 @@ public class BlockService : IBlockService
             .Where(p => blockedUserIds.Contains(p.UserId))
             .ToDictionaryAsync(p => p.UserId, cancellationToken);
 
+        var users = await _dbContext.Users
+            .AsNoTracking()
+            .Where(u => blockedUserIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, cancellationToken);
+
         var result = new List<BlockedUserDto>();
         foreach (var block in blocks)
         {
             profiles.TryGetValue(block.BlockedUserId, out var profile);
+            users.TryGetValue(block.BlockedUserId, out var user);
             result.Add(new BlockedUserDto(
                 block.BlockedUserId,
                 profile?.DisplayName ?? "Unknown User",
                 profile?.AvatarUrl,
                 block.Reason,
-                block.CreatedAtUtc
+                block.CreatedAtUtc,
+                user?.UserName
             ));
         }
 

@@ -1,0 +1,74 @@
+@namespace Pavena.Web.Components.Network
+@using Pavena.Application.Social.DTOs
+@using Pavena.Web.Components.UI
+
+<div class="pv-connection-card">
+    <div class="pv-connection-info">
+        <PvAvatar Name="@User.DisplayName" ImageUrl="@User.AvatarUrl" Size="lg" Status="online" />
+        <div class="pv-connection-details">
+            <h4>
+                <a href="@ProfileUrl" style="color: var(--pv-color-text); text-decoration: none;">
+                    @User.DisplayName
+                </a>
+            </h4>
+            @if (!string.IsNullOrWhiteSpace(User.Headline))
+            {
+                <p>@User.Headline</p>
+            }
+            <div class="pv-connection-time">
+                @if (IsFollowingMode)
+                {
+                    <span>Diikuti sejak @User.FollowedAtUtc.ToString("dd MMMM yyyy")</span>
+                }
+                else
+                {
+                    <span>Mengikuti Anda sejak @User.FollowedAtUtc.ToString("dd MMMM yyyy")</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="pv-connection-actions">
+        <a href="@ProfileUrl" class="pv-btn pv-btn-ghost pv-btn-sm" style="text-decoration: none;">
+            <span>Profil</span>
+        </a>
+
+        @if (IsFollowing)
+        {
+            <PvButton Variant="outline" Size="sm" IsLoading="@isActionLoading" OnClick="HandleToggle">
+                <span>Berhenti Mengikuti</span>
+            </PvButton>
+        }
+        else
+        {
+            <PvButton Variant="primary" Size="sm" IsLoading="@isActionLoading" OnClick="HandleToggle">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="8.5" cy="7" r="4"></circle>
+                    <polyline points="17 11 19 13 23 9"></polyline>
+                </svg>
+                <span>Ikuti</span>
+            </PvButton>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public FollowUserDto User { get; set; } = default!;
+    [Parameter] public bool IsFollowingMode { get; set; } = true;
+    [Parameter] public bool IsFollowing { get; set; } = true;
+    [Parameter] public EventCallback<Guid> OnToggleFollow { get; set; }
+
+    private bool isActionLoading = false;
+
+    private string ProfileUrl => !string.IsNullOrWhiteSpace(User.Username)
+        ? $"/scholars/{User.Username}"
+        : $"/scholars/{User.UserId}";
+
+    private async Task HandleToggle()
+    {
+        isActionLoading = true;
+        try { await OnToggleFollow.InvokeAsync(User.UserId); }
+        finally { isActionLoading = false; }
+    }
+}

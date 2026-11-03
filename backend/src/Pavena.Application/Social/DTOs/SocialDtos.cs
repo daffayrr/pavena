@@ -8,7 +8,15 @@ public record ConnectionDto(
     Guid AddresseeUserId,
     string Status,
     DateTime RequestedAtUtc,
-    DateTime? RespondedAtUtc
+    DateTime? RespondedAtUtc,
+    string? RequesterDisplayName = null,
+    string? RequesterAvatarUrl = null,
+    string? RequesterHeadline = null,
+    string? RequesterUsername = null,
+    string? AddresseeDisplayName = null,
+    string? AddresseeAvatarUrl = null,
+    string? AddresseeHeadline = null,
+    string? AddresseeUsername = null
 );
 
 public record ConnectionUserDto(
@@ -16,7 +24,8 @@ public record ConnectionUserDto(
     string DisplayName,
     string? Headline,
     string? AvatarUrl,
-    DateTime ConnectedAtUtc
+    DateTime ConnectedAtUtc,
+    string? Username = null
 );
 
 public record ConnectionStatusDto(
@@ -30,7 +39,8 @@ public record FollowUserDto(
     string DisplayName,
     string? Headline,
     string? AvatarUrl,
-    DateTime FollowedAtUtc
+    DateTime FollowedAtUtc,
+    string? Username = null
 );
 
 public record FollowStatusDto(
@@ -47,5 +57,21 @@ public record BlockedUserDto(
     string DisplayName,
     string? AvatarUrl,
     string? Reason,
-    DateTime BlockedAtUtc
+    DateTime BlockedAtUtc,
+    string? Username = null
+);
+
+public record ResearcherDiscoveryDto(
+    Guid UserId,
+    string Username,
+    string DisplayName,
+    string? Headline,
+    string? AvatarUrl,
+    string? PrimaryAffiliation,
+    bool IsVerified,
+    IReadOnlyList<string> TopSkills,
+    int PublicationsCount,
+    int ConnectionsCount,
+    string ConnectionStatus,
+    bool IsFollowing
 );

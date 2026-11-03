@@ -1,0 +1,112 @@
+@namespace Pavena.Web.Components.Network
+@using Pavena.Application.Social.DTOs
+@using Pavena.Web.Components.UI
+
+<div class="pv-connection-card">
+    <div class="pv-connection-info">
+        <PvAvatar Name="@TargetName" ImageUrl="@TargetAvatar" Size="lg" Status="online" />
+        <div class="pv-connection-details">
+            <h4>
+                <a href="@ProfileUrl" style="color: var(--pv-color-text); text-decoration: none;">
+                    @TargetName
+                </a>
+            </h4>
+            @if (!string.IsNullOrWhiteSpace(TargetHeadline))
+            {
+                <p>@TargetHeadline</p>
+            }
+            <div class="pv-connection-time">
+                @if (IsIncoming)
+                {
+                    <span>Mengirim permintaan pada @Request.RequestedAtUtc.ToString("dd MMM yyyy, HH:mm")</span>
+                }
+                else
+                {
+                    <span>Permintaan dikirim pada @Request.RequestedAtUtc.ToString("dd MMM yyyy, HH:mm")</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="pv-connection-actions">
+        <a href="@ProfileUrl" class="pv-btn pv-btn-ghost pv-btn-sm" style="text-decoration: none;">
+            <span>Profil</span>
+        </a>
+
+        @if (IsIncoming)
+        {
+            <PvButton Variant="primary" Size="sm" IsLoading="@isActionLoading" OnClick="HandleAccept">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>Terima</span>
+            </PvButton>
+            <PvButton Variant="outline" Size="sm" IsLoading="@isActionLoading" OnClick="HandleReject">
+                <span>Tolak</span>
+            </PvButton>
+        }
+        else
+        {
+            <PvButton Variant="outline" Size="sm" IsLoading="@isActionLoading" OnClick="HandleCancel">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+                <span>Batalkan Permintaan</span>
+            </PvButton>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public ConnectionDto Request { get; set; } = default!;
+    [Parameter] public bool IsIncoming { get; set; }
+    [Parameter] public EventCallback<Guid> OnAccept { get; set; }
+    [Parameter] public EventCallback<Guid> OnReject { get; set; }
+    [Parameter] public EventCallback<Guid> OnCancel { get; set; }
+
+    private bool isActionLoading = false;
+
+    private string TargetName => IsIncoming
+        ? (Request.RequesterDisplayName ?? "Peneliti Kolega")
+        : (Request.AddresseeDisplayName ?? "Peneliti Kolega");
+
+    private string? TargetAvatar => IsIncoming
+        ? Request.RequesterAvatarUrl
+        : Request.AddresseeAvatarUrl;
+
+    private string? TargetHeadline => IsIncoming
+        ? Request.RequesterHeadline
+        : Request.AddresseeHeadline;
+
+    private string ProfileUrl
+    {
+        get
+        {
+            var user = IsIncoming ? Request.RequesterUsername : Request.AddresseeUsername;
+            var userId = IsIncoming ? Request.RequesterUserId : Request.AddresseeUserId;
+            return !string.IsNullOrWhiteSpace(user) ? $"/scholars/{user}" : $"/scholars/{userId}";
+        }
+    }
+
+    private async Task HandleAccept()
+    {
+        isActionLoading = true;
+        try { await OnAccept.InvokeAsync(Request.Id); }
+        finally { isActionLoading = false; }
+    }
+
+    private async Task HandleReject()
+    {
+        isActionLoading = true;
+        try { await OnReject.InvokeAsync(Request.Id); }
+        finally { isActionLoading = false; }
+    }
+
+    private async Task HandleCancel()
+    {
+        isActionLoading = true;
+        try { await OnCancel.InvokeAsync(Request.Id); }
+        finally { isActionLoading = false; }
+    }
+}

@@ -1,0 +1,186 @@
+@page "/network/requests"
+@namespace Pavena.Web.Pages
+@using Pavena.Application.Social.DTOs
+@using Pavena.Web.Components.Network
+@using Pavena.Web.Components.UI
+@using Pavena.Web.Services.Profile
+@using Pavena.Web.Services.Toast
+@inject IAcademicProfileClient ProfileClient
+@inject IToastService ToastService
+
+<PageTitle>Permintaan Koneksi — Pavena</PageTitle>
+
+<div class="pv-network-container">
+    <!-- Network Navigation Tabs -->
+    <NetworkNavTabs ActiveTab="requests" PendingRequestsCount="@(incomingRequests?.Count ?? 0)" />
+
+    <!-- Page Header & Tab Segment -->
+    <div class="pv-network-header">
+        <div class="pv-network-title-row">
+            <div>
+                <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--pv-color-text); margin: 0 0 4px;">
+                    Kelola Permintaan Koneksi
+                </h2>
+                <p style="font-size: 0.875rem; color: var(--pv-color-text-muted); margin: 0;">
+                    Tinjau undangan jaringan rekan yang masuk atau pantau permintaan yang telah Anda kirimkan.
+                </p>
+            </div>
+        </div>
+
+        <!-- Segmented Toggle -->
+        <div style="display: flex; gap: 8px; margin-top: var(--pv-space-4);">
+            <button type="button"
+                    class="pv-btn @(activeView == "incoming" ? "pv-btn-primary" : "pv-btn-outline") pv-btn-sm"
+                    @onclick='() => activeView = "incoming"'>
+                <span>Permintaan Masuk</span>
+                @if (incomingRequests != null && incomingRequests.Any())
+                {
+                    <span style="margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.25); font-size: 0.75rem;">
+                        @incomingRequests.Count
+                    </span>
+                }
+            </button>
+
+            <button type="button"
+                    class="pv-btn @(activeView == "outgoing" ? "pv-btn-primary" : "pv-btn-outline") pv-btn-sm"
+                    @onclick='() => activeView = "outgoing"'>
+                <span>Permintaan Terkirim</span>
+                @if (outgoingRequests != null && outgoingRequests.Any())
+                {
+                    <span style="margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.25); font-size: 0.75rem;">
+                        @outgoingRequests.Count
+                    </span>
+                }
+            </button>
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    @if (isLoading)
+    {
+        <PvLoading Text="Memuat data permintaan koneksi..." />
+    }
+    else if (hasError)
+    {
+        <PvErrorState Title="Gagal Mengambil Data Permintaan"
+                      Description="Tidak dapat menghubungkan ke layanan pertemanan saat ini."
+                      RetryText="Coba Lagi"
+                      OnRetry="LoadRequestsAsync" />
+    }
+    else if (activeView == "incoming")
+    {
+        @if (incomingRequests == null || !incomingRequests.Any())
+        {
+            <PvEmptyState Title="Tidak ada permintaan koneksi masuk"
+                          Description="Saat peneliti lain mengundang Anda untuk berkoneksi, permintaan akan muncul di sini." />
+        }
+        else
+        {
+            <div style="display: flex; flex-direction: column; gap: var(--pv-space-3);">
+                @foreach (var req in incomingRequests)
+                {
+                    <ConnectionRequestCard Request="@req"
+                                           IsIncoming="true"
+                                           OnAccept="HandleAcceptRequest"
+                                           OnReject="HandleRejectRequest" />
+                }
+            </div>
+        }
+    }
+    else if (activeView == "outgoing")
+    {
+        @if (outgoingRequests == null || !outgoingRequests.Any())
+        {
+            <PvEmptyState Title="Tidak ada permintaan yang terkirim"
+                          Description="Anda belum memiliki undangan koneksi yang sedang menunggu persetujuan rekan." />
+        }
+        else
+        {
+            <div style="display: flex; flex-direction: column; gap: var(--pv-space-3);">
+                @foreach (var req in outgoingRequests)
+                {
+                    <ConnectionRequestCard Request="@req"
+                                           IsIncoming="false"
+                                           OnCancel="HandleCancelRequest" />
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<ConnectionDto>? incomingRequests;
+    private List<ConnectionDto>? outgoingRequests;
+    private bool isLoading = true;
+    private bool hasError = false;
+    private string activeView = "incoming";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequestsAsync();
+    }
+
+    private async Task LoadRequestsAsync()
+    {
+        isLoading = true;
+        hasError = false;
+        try
+        {
+            var inc = await ProfileClient.GetIncomingConnectionRequestsAsync();
+            var outg = await ProfileClient.GetOutgoingConnectionRequestsAsync();
+            incomingRequests = inc.ToList();
+            outgoingRequests = outg.ToList();
+        }
+        catch (Exception ex)
+        {
+            hasError = true;
+            ToastService.ShowError($"Gagal memuat permintaan: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleAcceptRequest(Guid requestId)
+    {
+        var ok = await ProfileClient.AcceptConnectionRequestAsync(requestId);
+        if (ok)
+        {
+            ToastService.ShowSuccess("Permintaan koneksi berhasil diterima.");
+            incomingRequests?.RemoveAll(r => r.Id == requestId);
+        }
+        else
+        {
+            ToastService.ShowError("Gagal menerima permintaan koneksi.");
+        }
+    }
+
+    private async Task HandleRejectRequest(Guid requestId)
+    {
+        var ok = await ProfileClient.RejectConnectionRequestAsync(requestId);
+        if (ok)
+        {
+            ToastService.ShowInfo("Permintaan koneksi ditolak.");
+            incomingRequests?.RemoveAll(r => r.Id == requestId);
+        }
+        else
+        {
+            ToastService.ShowError("Gagal menolak permintaan koneksi.");
+        }
+    }
+
+    private async Task HandleCancelRequest(Guid requestId)
+    {
+        var ok = await ProfileClient.CancelConnectionRequestAsync(requestId);
+        if (ok)
+        {
+            ToastService.ShowInfo("Permintaan koneksi telah dibatalkan.");
+            outgoingRequests?.RemoveAll(r => r.Id == requestId);
+        }
+        else
+        {
+            ToastService.ShowError("Gagal membatalkan permintaan koneksi.");
+        }
+    }
+}

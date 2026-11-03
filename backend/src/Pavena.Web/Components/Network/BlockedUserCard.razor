@@ -1,0 +1,65 @@
+@namespace Pavena.Web.Components.Network
+@using Pavena.Application.Social.DTOs
+@using Pavena.Web.Components.UI
+
+<div class="pv-connection-card">
+    <div class="pv-connection-info">
+        <PvAvatar Name="@BlockedUser.DisplayName" ImageUrl="@BlockedUser.AvatarUrl" Size="lg" />
+        <div class="pv-connection-details">
+            <h4 style="color: var(--pv-color-text);">
+                @BlockedUser.DisplayName
+            </h4>
+            @if (!string.IsNullOrWhiteSpace(BlockedUser.Reason))
+            {
+                <p style="color: var(--pv-color-danger); font-size: 0.8125rem;">
+                    Alasan: @BlockedUser.Reason
+                </p>
+            }
+            <div class="pv-connection-time">
+                Diblokir pada @BlockedUser.BlockedAtUtc.ToString("dd MMMM yyyy")
+            </div>
+        </div>
+    </div>
+
+    <div class="pv-connection-actions">
+        <PvButton Variant="outline" Size="sm" OnClick="() => showConfirm = true">
+            <span>Buka Blokir</span>
+        </PvButton>
+    </div>
+</div>
+
+<PvModal IsOpen="@showConfirm" IsOpenChanged="@(v => showConfirm = v)" Title="Konfirmasi Buka Blokir" MaxWidth="440px">
+    <ChildContent>
+        <p style="font-size: 0.875rem; color: var(--pv-color-text); line-height: 1.5; margin: 0;">
+            Apakah Anda yakin ingin membuka blokir untuk <strong>@BlockedUser.DisplayName</strong>? Peneliti ini akan dapat melihat konten publik Anda kembali dan mengirimkan permintaan koneksi.
+        </p>
+    </ChildContent>
+    <Footer>
+        <PvButton Variant="ghost" OnClick="() => showConfirm = false">Batal</PvButton>
+        <PvButton Variant="primary" IsLoading="@isUnblocking" OnClick="HandleConfirmUnblock">
+            <span>Buka Blokir</span>
+        </PvButton>
+    </Footer>
+</PvModal>
+
+@code {
+    [Parameter] public BlockedUserDto BlockedUser { get; set; } = default!;
+    [Parameter] public EventCallback<Guid> OnUnblock { get; set; }
+
+    private bool showConfirm = false;
+    private bool isUnblocking = false;
+
+    private async Task HandleConfirmUnblock()
+    {
+        isUnblocking = true;
+        try
+        {
+            await OnUnblock.InvokeAsync(BlockedUser.UserId);
+            showConfirm = false;
+        }
+        finally
+        {
+            isUnblocking = false;
+        }
+    }
+}

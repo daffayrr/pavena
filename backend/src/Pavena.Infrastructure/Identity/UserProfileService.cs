@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Pavena.Application.Common.Interfaces;
 using Pavena.Application.Identity.DTOs;
 using Pavena.Application.Identity.Interfaces;
+using Pavena.Application.Social.DTOs;
 using Pavena.Domain.Common;
 using Pavena.Domain.Entities.Profiles;
 using Pavena.Domain.Enums;
@@ -404,5 +405,192 @@ public class UserProfileService : IUserProfileService
         _dbContext.UserSkills.Remove(skill);
         await _dbContext.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<IReadOnlyList<ResearcherDiscoveryDto>> DiscoverResearchersAsync(
+        Guid? callerUserId,
+        string? query = null,
+        string? institution = null,
+        string? expertise = null,
+        int limit = 20,
+        int offset = 0,
+        CancellationToken cancellationToken = default)
+    {
+        limit = Math.Clamp(limit, 1, 50);
+        offset = Math.Max(0, offset);
+
+        var blockedUserIds = new HashSet<Guid>();
+        if (callerUserId.HasValue)
+        {
+            var callerId = callerUserId.Value;
+            var blocks = await _dbContext.UserBlocks
+                .AsNoTracking()
+                .Where(b => b.BlockerUserId == callerId || b.BlockedUserId == callerId)
+                .Select(b => b.BlockerUserId == callerId ? b.BlockedUserId : b.BlockerUserId)
+                .ToListAsync(cancellationToken);
+
+            foreach (var id in blocks)
+            {
+                blockedUserIds.Add(id);
+            }
+        }
+
+        var usersQuery = _dbContext.Users
+            .AsNoTracking()
+            .Include(u => u.Profile)
+            .Include(u => u.Skills)
+            .Include(u => u.Memberships)
+                .ThenInclude(m => m.Organization)
+            .Where(u => u.Profile != null && u.Profile.Visibility != ProfileVisibility.Private);
+
+        if (callerUserId.HasValue)
+        {
+            usersQuery = usersQuery.Where(u => u.Id != callerUserId.Value && !blockedUserIds.Contains(u.Id));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var q = query.Trim().ToLower();
+            usersQuery = usersQuery.Where(u =>
+                u.Profile!.DisplayName.ToLower().Contains(q) ||
+                (u.UserName != null && u.UserName.ToLower().Contains(q)) ||
+                (u.Profile.Headline != null && u.Profile.Headline.ToLower().Contains(q)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(institution))
+        {
+            var inst = institution.Trim().ToLower();
+            usersQuery = usersQuery.Where(u =>
+                u.Memberships.Any(m => m.Organization != null && m.Organization.Name.ToLower().Contains(inst)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(expertise))
+        {
+            var exp = expertise.Trim().ToLower();
+            usersQuery = usersQuery.Where(u =>
+                u.Skills.Any(s => s.SkillName.ToLower().Contains(exp)));
+        }
+
+        var candidates = await usersQuery
+            .OrderBy(u => u.Profile!.DisplayName)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+        if (!candidates.Any())
+            return Array.Empty<ResearcherDiscoveryDto>();
+
+        var candidateIds = candidates.Select(c => c.Id).ToList();
+
+        // 1. Connection states for caller
+        var connectionMap = new Dictionary<Guid, (string Status, bool IsRequester)>();
+        if (callerUserId.HasValue)
+        {
+            var callerId = callerUserId.Value;
+            var connections = await _dbContext.Connections
+                .AsNoTracking()
+                .Where(c => (c.CanonicalUserA == callerId && candidateIds.Contains(c.CanonicalUserB)) ||
+                            (c.CanonicalUserB == callerId && candidateIds.Contains(c.CanonicalUserA)))
+                .ToListAsync(cancellationToken);
+
+            foreach (var conn in connections)
+            {
+                var otherId = conn.GetOtherUserId(callerId);
+                connectionMap[otherId] = (conn.Status.ToString(), conn.RequesterUserId == callerId);
+            }
+        }
+
+        // 2. Following states for caller
+        var followingSet = new HashSet<Guid>();
+        if (callerUserId.HasValue)
+        {
+            var callerId = callerUserId.Value;
+            var follows = await _dbContext.Follows
+                .AsNoTracking()
+                .Where(f => f.FollowerUserId == callerId &&
+                            f.TargetType == FollowTargetType.User &&
+                            candidateIds.Contains(f.TargetId))
+                .Select(f => f.TargetId)
+                .ToListAsync(cancellationToken);
+
+            foreach (var fId in follows)
+            {
+                followingSet.Add(fId);
+            }
+        }
+
+        // 3. Publications count
+        var publicationsMap = await _dbContext.Posts
+            .AsNoTracking()
+            .Where(p => candidateIds.Contains(p.AuthorUserId) &&
+                        p.Status == PostStatus.Published &&
+                        p.Visibility == PostVisibility.Public)
+            .GroupBy(p => p.AuthorUserId)
+            .Select(g => new { UserId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.UserId, g => g.Count, cancellationToken);
+
+        // 4. Connections count
+        var connectionsMap = await _dbContext.Connections
+            .AsNoTracking()
+            .Where(c => c.Status == ConnectionStatus.Accepted &&
+                        (candidateIds.Contains(c.CanonicalUserA) || candidateIds.Contains(c.CanonicalUserB)))
+            .ToListAsync(cancellationToken);
+
+        var connCountMap = new Dictionary<Guid, int>();
+        foreach (var c in candidateIds)
+        {
+            connCountMap[c] = connectionsMap.Count(conn => conn.CanonicalUserA == c || conn.CanonicalUserB == c);
+        }
+
+        var result = new List<ResearcherDiscoveryDto>();
+        foreach (var user in candidates)
+        {
+            var p = user.Profile!;
+            var primaryOrg = user.Memberships
+                .Where(m => m.Organization != null)
+                .Select(m => m.Organization!.Name)
+                .FirstOrDefault();
+
+            var isVerified = user.Memberships
+                .Any(m => m.Organization != null && m.Organization.VerificationStatus == OrganizationVerificationStatus.Verified);
+
+            var topSkills = user.Skills
+                .OrderBy(s => s.SkillName)
+                .Take(4)
+                .Select(s => s.SkillName)
+                .ToList();
+
+            var connStatus = "None";
+            if (connectionMap.TryGetValue(user.Id, out var state))
+            {
+                if (state.Status == "Accepted")
+                    connStatus = "Accepted";
+                else if (state.Status == "Pending")
+                    connStatus = state.IsRequester ? "PendingOutgoing" : "PendingIncoming";
+                else
+                    connStatus = state.Status;
+            }
+
+            var isFollowing = followingSet.Contains(user.Id);
+            publicationsMap.TryGetValue(user.Id, out var pubCount);
+            connCountMap.TryGetValue(user.Id, out var conCount);
+
+            result.Add(new ResearcherDiscoveryDto(
+                user.Id,
+                user.UserName ?? string.Empty,
+                p.DisplayName,
+                p.Headline,
+                p.AvatarUrl,
+                primaryOrg,
+                isVerified,
+                topSkills,
+                pubCount,
+                conCount,
+                connStatus,
+                isFollowing
+            ));
+        }
+
+        return result;
     }
 }

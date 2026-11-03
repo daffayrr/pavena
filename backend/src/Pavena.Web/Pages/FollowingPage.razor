@@ -1,0 +1,150 @@
+@page "/network/following"
+@namespace Pavena.Web.Pages
+@using Pavena.Application.Social.DTOs
+@using Pavena.Web.Components.Network
+@using Pavena.Web.Components.UI
+@using Pavena.Web.Services.Profile
+@using Pavena.Web.Services.Toast
+@inject IAcademicProfileClient ProfileClient
+@inject IToastService ToastService
+
+<PageTitle>Peneliti yang Diikuti — Pavena</PageTitle>
+
+<div class="pv-network-container">
+    <!-- Network Navigation Tabs -->
+    <NetworkNavTabs ActiveTab="following" FollowingCount="@(followingList?.Count ?? 0)" />
+
+    <!-- Page Header & Filter -->
+    <div class="pv-network-header">
+        <div class="pv-network-title-row">
+            <div>
+                <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--pv-color-text); margin: 0 0 4px; display: flex; align-items: center; gap: 8px;">
+                    <span>Peneliti yang Anda Ikuti</span>
+                    @if (followingList != null)
+                    {
+                        <PvBadge Variant="secondary">@FilteredFollowing.Count</PvBadge>
+                    }
+                </h2>
+                <p style="font-size: 0.875rem; color: var(--pv-color-text-muted); margin: 0;">
+                    Pembaruan riset, naskah pra-cetak, dan publikasi publik dari peneliti ini akan muncul di linimasa Anda.
+                </p>
+            </div>
+        </div>
+
+        @if (followingList != null && followingList.Any())
+        {
+            <div style="max-width: 420px; margin-bottom: var(--pv-space-4);">
+                <input type="text"
+                       class="pv-input pv-input-sm"
+                       placeholder="Cari dalam daftar akun yang diikuti..."
+                       @bind="searchKeyword"
+                       @bind:event="oninput" />
+            </div>
+        }
+    </div>
+
+    <!-- Content Area -->
+    @if (isLoading)
+    {
+        <PvLoading Text="Memuat daftar peneliti yang Anda ikuti..." />
+    }
+    else if (hasError)
+    {
+        <PvErrorState Title="Gagal Mengambil Data Peneliti"
+                      Description="Tidak dapat menghubungi layanan follow saat ini."
+                      RetryText="Coba Lagi"
+                      OnRetry="LoadFollowingAsync" />
+    }
+    else if (!FilteredFollowing.Any())
+    {
+        @if (!string.IsNullOrWhiteSpace(searchKeyword))
+        {
+            <PvEmptyState Title="Tidak ditemukan"
+                          Description="Tidak ada peneliti yang cocok dengan kata kunci pencarian." />
+        }
+        else
+        {
+            <PvEmptyState Title="Belum mengikuti peneliti mana pun"
+                          Description="Ikuti ilmuwan dan institusi untuk mendapatkan publikasi terbaru langsung di beranda Anda.">
+                <ActionContent>
+                    <a href="/network/discover" class="pv-btn pv-btn-primary pv-btn-sm" style="text-decoration: none;">
+                        <span>Eksplorasi Peneliti</span>
+                    </a>
+                </ActionContent>
+            </PvEmptyState>
+        }
+    }
+    else
+    {
+        <div style="display: flex; flex-direction: column; gap: var(--pv-space-3);">
+            @foreach (var user in FilteredFollowing)
+            {
+                <FollowCard User="@user"
+                            IsFollowingMode="true"
+                            IsFollowing="true"
+                            OnToggleFollow="HandleUnfollow" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<FollowUserDto>? followingList;
+    private bool isLoading = true;
+    private bool hasError = false;
+    private string searchKeyword = "";
+
+    private List<FollowUserDto> FilteredFollowing
+    {
+        get
+        {
+            if (followingList == null) return new List<FollowUserDto>();
+            if (string.IsNullOrWhiteSpace(searchKeyword)) return followingList;
+            var kw = searchKeyword.Trim().ToLowerInvariant();
+            return followingList.Where(u =>
+                u.DisplayName.ToLowerInvariant().Contains(kw) ||
+                (u.Headline != null && u.Headline.ToLowerInvariant().Contains(kw)) ||
+                (u.Username != null && u.Username.ToLowerInvariant().Contains(kw))
+            ).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFollowingAsync();
+    }
+
+    private async Task LoadFollowingAsync()
+    {
+        isLoading = true;
+        hasError = false;
+        try
+        {
+            var res = await ProfileClient.GetFollowingAsync();
+            followingList = res.ToList();
+        }
+        catch (Exception ex)
+        {
+            hasError = true;
+            ToastService.ShowError($"Gagal memuat daftar following: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleUnfollow(Guid targetUserId)
+    {
+        var ok = await ProfileClient.UnfollowUserAsync(targetUserId);
+        if (ok)
+        {
+            ToastService.ShowInfo("Berhenti mengikuti peneliti.");
+            followingList?.RemoveAll(u => u.UserId == targetUserId);
+        }
+        else
+        {
+            ToastService.ShowError("Gagal memperbarui status follow.");
+        }
+    }
+}

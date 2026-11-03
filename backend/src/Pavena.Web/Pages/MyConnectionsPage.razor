@@ -1,0 +1,148 @@
+@page "/network/connections"
+@page "/network"
+@namespace Pavena.Web.Pages
+@using Pavena.Application.Social.DTOs
+@using Pavena.Web.Components.Network
+@using Pavena.Web.Components.UI
+@using Pavena.Web.Services.Profile
+@using Pavena.Web.Services.Toast
+@inject IAcademicProfileClient ProfileClient
+@inject IToastService ToastService
+
+<PageTitle>Koneksi Saya — Pavena</PageTitle>
+
+<div class="pv-network-container">
+    <!-- Network Navigation Tabs -->
+    <NetworkNavTabs ActiveTab="connections" ConnectionsCount="@(connections?.Count ?? 0)" />
+
+    <!-- Page Header & Filter -->
+    <div class="pv-network-header">
+        <div class="pv-network-title-row">
+            <div>
+                <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--pv-color-text); margin: 0 0 4px; display: flex; align-items: center; gap: 8px;">
+                    <span>Jejaring Koneksi Akademik</span>
+                    @if (connections != null)
+                    {
+                        <PvBadge Variant="primary">@FilteredConnections.Count</PvBadge>
+                    }
+                </h2>
+                <p style="font-size: 0.875rem; color: var(--pv-color-text-muted); margin: 0;">
+                    Rekan saintis dan kolaborator resmi yang telah menerima permintaan koneksi timbal balik.
+                </p>
+            </div>
+        </div>
+
+        @if (connections != null && connections.Any())
+        {
+            <div style="max-width: 420px; margin-bottom: var(--pv-space-4);">
+                <input type="text"
+                       class="pv-input pv-input-sm"
+                       placeholder="Cari dalam daftar koneksi Anda..."
+                       @bind="searchKeyword"
+                       @bind:event="oninput" />
+            </div>
+        }
+    </div>
+
+    <!-- Content Area -->
+    @if (isLoading)
+    {
+        <PvLoading Text="Memuat daftar koneksi akademik Anda..." />
+    }
+    else if (hasError)
+    {
+        <PvErrorState Title="Gagal Mengambil Daftar Koneksi"
+                      Description="Tidak dapat menghubungkan ke layanan jaringan saat ini."
+                      RetryText="Coba Lagi"
+                      OnRetry="LoadConnectionsAsync" />
+    }
+    else if (!FilteredConnections.Any())
+    {
+        @if (!string.IsNullOrWhiteSpace(searchKeyword))
+        {
+            <PvEmptyState Title="Koneksi tidak ditemukan"
+                          Description="Tidak ada rekan yang cocok dengan kata kunci pencarian Anda." />
+        }
+        else
+        {
+            <PvEmptyState Title="Belum ada koneksi rekan"
+                          Description="Jalin hubungan dengan kolega dan saintis di seluruh dunia untuk memperluas kolaborasi riset.">
+                <ActionContent>
+                    <a href="/network/discover" class="pv-btn pv-btn-primary pv-btn-sm" style="text-decoration: none;">
+                        <span>Temukan Rekan Peneliti</span>
+                    </a>
+                </ActionContent>
+            </PvEmptyState>
+        }
+    }
+    else
+    {
+        <div style="display: flex; flex-direction: column; gap: var(--pv-space-3);">
+            @foreach (var conn in FilteredConnections)
+            {
+                <ConnectionCard Connection="@conn" OnRemove="HandleRemoveConnection" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<ConnectionUserDto>? connections;
+    private bool isLoading = true;
+    private bool hasError = false;
+    private string searchKeyword = "";
+
+    private List<ConnectionUserDto> FilteredConnections
+    {
+        get
+        {
+            if (connections == null) return new List<ConnectionUserDto>();
+            if (string.IsNullOrWhiteSpace(searchKeyword)) return connections;
+            var kw = searchKeyword.Trim().ToLowerInvariant();
+            return connections.Where(c =>
+                c.DisplayName.ToLowerInvariant().Contains(kw) ||
+                (c.Headline != null && c.Headline.ToLowerInvariant().Contains(kw)) ||
+                (c.Username != null && c.Username.ToLowerInvariant().Contains(kw))
+            ).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadConnectionsAsync();
+    }
+
+    private async Task LoadConnectionsAsync()
+    {
+        isLoading = true;
+        hasError = false;
+        try
+        {
+            var res = await ProfileClient.GetAcceptedConnectionsAsync();
+            connections = res.ToList();
+        }
+        catch (Exception ex)
+        {
+            hasError = true;
+            ToastService.ShowError($"Gagal memuat koneksi: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleRemoveConnection(Guid targetUserId)
+    {
+        var ok = await ProfileClient.RemoveConnectionAsync(targetUserId);
+        if (ok)
+        {
+            ToastService.ShowSuccess("Koneksi berhasil diputuskan.");
+            connections?.RemoveAll(c => c.UserId == targetUserId);
+        }
+        else
+        {
+            ToastService.ShowError("Gagal memutuskan koneksi.");
+        }
+    }
+}
