@@ -18,6 +18,7 @@ public class FeedController : ControllerBase
     }
 
     [HttpGet]
+    [HttpGet("network")]
     public async Task<IActionResult> GetMyNetworkFeed(
         [FromQuery] int limit = 20,
         [FromQuery] string? cursor = null,

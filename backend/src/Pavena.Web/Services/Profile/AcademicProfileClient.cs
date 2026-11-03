@@ -539,6 +539,64 @@ public class AcademicProfileClient : IAcademicProfileClient
     }
 
     // =========================================================================
+    // CHRONOLOGICAL FEED & KEYSET CURSOR PAGINATION
+    // =========================================================================
+
+    public async Task<FeedResponseDto?> GetMyNetworkFeedAsync(int limit = 20, string? cursor = null, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var url = $"api/v1/feed?limit={limit}";
+            if (!string.IsNullOrWhiteSpace(cursor))
+            {
+                url += $"&cursor={Uri.EscapeDataString(cursor)}";
+            }
+
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<FeedResponseDto>(_jsonOptions, cancellationToken);
+            }
+
+            _logger?.LogWarning("GetMyNetworkFeed returned {StatusCode}", response.StatusCode);
+            return GetFallbackNetworkFeed(cursor);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to GetMyNetworkFeed. Returning preview network feed.");
+            return GetFallbackNetworkFeed(cursor);
+        }
+    }
+
+    public async Task<FeedResponseDto?> GetDiscoverFeedAsync(int limit = 20, string? cursor = null, CancellationToken cancellationToken = default)
+    {
+        SetAuthorizationHeader();
+        try
+        {
+            var url = $"api/v1/feed/discover?limit={limit}";
+            if (!string.IsNullOrWhiteSpace(cursor))
+            {
+                url += $"&cursor={Uri.EscapeDataString(cursor)}";
+            }
+
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<FeedResponseDto>(_jsonOptions, cancellationToken);
+            }
+
+            _logger?.LogWarning("GetDiscoverFeed returned {StatusCode}", response.StatusCode);
+            return GetFallbackDiscoverFeed(cursor);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogWarning(ex, "HTTP call failed to GetDiscoverFeed. Returning preview discover feed.");
+            return GetFallbackDiscoverFeed(cursor);
+        }
+    }
+
+    // =========================================================================
     // RESEARCHER DISCOVERY
     // =========================================================================
 
@@ -1183,5 +1241,120 @@ public class AcademicProfileClient : IAcademicProfileClient
                 new List<PostAttachmentDto>()
             )
         };
+    }
+
+    private static FeedResponseDto GetFallbackNetworkFeed(string? cursor)
+    {
+        if (!string.IsNullOrWhiteSpace(cursor))
+        {
+            // Second page preview: no more items
+            return new FeedResponseDto(new List<PostDto>
+            {
+                new(
+                    Guid.NewGuid(),
+                    Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                    "Dr. Rosalind Franklin",
+                    null,
+                    "[Research Finding]\n\nPhotograph 51 confirms the helical B-form structure of DNA with clear cross-shaped X-ray diffraction patterns.",
+                    "Connections",
+                    "Published",
+                    DateTime.UtcNow.AddDays(-5),
+                    DateTime.UtcNow.AddDays(-5),
+                    null,
+                    new List<PostAttachmentDto>
+                    {
+                        new(Guid.NewGuid(), "diffraction_b_form.png", "image/png", 1024 * 350, DateTime.UtcNow.AddDays(-5))
+                    }
+                )
+            }, null, false);
+        }
+
+        var items = new List<PostDto>
+        {
+            new(
+                Guid.NewGuid(),
+                Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                "Prof. Albert Einstein",
+                null,
+                "[Research Update]\n\nDalam peninjauan ulang tensor kelengkungan Riemann untuk persamaan medan gravitasi, kami menemukan solusi batas baru yang menjembatani konsistensi metrik Schwarzschild pada koordinat isotropik.",
+                "Public",
+                "Published",
+                DateTime.UtcNow.AddHours(-2),
+                DateTime.UtcNow.AddHours(-2),
+                null,
+                new List<PostAttachmentDto>()
+            ),
+            new(
+                Guid.NewGuid(),
+                Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                "Dr. Marie Curie",
+                null,
+                "[Academic Discussion]\n\nBagaimana protokol proteksi radiasi di laboratorium Anda untuk penanganan garam radium? Kami menyusun panduan keselamatan standar Eropa.",
+                "Connections",
+                "Published",
+                DateTime.UtcNow.AddHours(-6),
+                DateTime.UtcNow.AddHours(-6),
+                null,
+                new List<PostAttachmentDto>
+                {
+                    new(Guid.NewGuid(), "radiation_safety_draft.pdf", "application/pdf", 1024 * 120, DateTime.UtcNow.AddHours(-6))
+                }
+            ),
+            new(
+                Guid.NewGuid(),
+                Guid.Parse("44444444-4444-4444-4444-444444444444"),
+                "Dr. Alan Turing",
+                null,
+                "[Publication]\n\nOn Computable Numbers with an Application to the Entscheidungsproblem has been indexed for cross-referencing in mathematical logic databases.",
+                "Public",
+                "Published",
+                DateTime.UtcNow.AddDays(-1),
+                DateTime.UtcNow.AddDays(-1),
+                null,
+                new List<PostAttachmentDto>()
+            )
+        };
+
+        return new FeedResponseDto(items, "fallback_cursor_page_2", true);
+    }
+
+    private static FeedResponseDto GetFallbackDiscoverFeed(string? cursor)
+    {
+        if (!string.IsNullOrWhiteSpace(cursor))
+        {
+            return new FeedResponseDto(new List<PostDto>(), null, false);
+        }
+
+        var items = new List<PostDto>
+        {
+            new(
+                Guid.NewGuid(),
+                Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                "Prof. Albert Einstein",
+                null,
+                "[Research Finding]\n\nGeneral relativity formulation exhibits invariant light deflection in gravitational fields. Experimental verification during solar eclipse confirmed.",
+                "Public",
+                "Published",
+                DateTime.UtcNow.AddHours(-1),
+                DateTime.UtcNow.AddHours(-1),
+                null,
+                new List<PostAttachmentDto>()
+            ),
+            new(
+                Guid.NewGuid(),
+                Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                "Prof. Niels Bohr",
+                null,
+                "[Academic Discussion]\n\nQuantum transitions of atomic electrons emit discrete spectral lines governed by quantized angular momentum.",
+                "Public",
+                "Published",
+                DateTime.UtcNow.AddHours(-8),
+                DateTime.UtcNow.AddHours(-8),
+                null,
+                new List<PostAttachmentDto>()
+            )
+        };
+
+        return new FeedResponseDto(items, null, false);
     }
 }

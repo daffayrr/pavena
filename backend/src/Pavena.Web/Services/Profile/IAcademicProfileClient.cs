@@ -26,6 +26,10 @@ public interface IAcademicProfileClient
     Task<PostDto?> ArchivePostAsync(Guid postId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PostDto>> GetMyPostsAsync(CancellationToken cancellationToken = default);
 
+    // Feed (Chronological & Keyset Cursor Pagination)
+    Task<FeedResponseDto?> GetMyNetworkFeedAsync(int limit = 20, string? cursor = null, CancellationToken cancellationToken = default);
+    Task<FeedResponseDto?> GetDiscoverFeedAsync(int limit = 20, string? cursor = null, CancellationToken cancellationToken = default);
+
     // Researcher Discovery
     Task<IReadOnlyList<ResearcherDiscoveryDto>> GetDiscoverResearchersAsync(
         string? query = null,

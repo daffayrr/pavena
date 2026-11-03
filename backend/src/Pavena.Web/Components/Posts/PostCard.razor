@@ -15,6 +15,12 @@
                 <a href="/profile/@Post.AuthorUserId" class="pv-post-author-name">
                     @Post.AuthorDisplayName
                 </a>
+                @if (!string.IsNullOrWhiteSpace(AuthorHeadline) || !string.IsNullOrWhiteSpace(AuthorInstitution))
+                {
+                    <div style="font-size: 0.75rem; color: var(--pv-color-text-muted); margin-bottom: 2px;">
+                        @AuthorHeadline @(!string.IsNullOrWhiteSpace(AuthorHeadline) && !string.IsNullOrWhiteSpace(AuthorInstitution) ? "•" : "") @AuthorInstitution
+                    </div>
+                }
                 <div class="pv-post-timestamp">
                     <span title="@FormattedFullDate">@FormattedRelativeTime</span>
                     @if (Post.EditedAtUtc.HasValue)
@@ -69,18 +75,20 @@
     <!-- Footer Toolbar -->
     <footer class="pv-post-footer">
         <div class="pv-post-actions-group">
-            <PvButton Variant="ghost" Size="sm" OnClick="HandleAppreciation">
+            <PvButton Variant="ghost" Size="sm" OnClick="HandleAppreciation" Title="Akan Datang: Fitur Apresiasi Ilmiah">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
                 </svg>
                 <span>Apresiasi</span>
+                <span class="pv-coming-soon-pill">Segera</span>
             </PvButton>
 
-            <PvButton Variant="ghost" Size="sm" OnClick="NavigateToDetail">
+            <PvButton Variant="ghost" Size="sm" OnClick="HandleDiscussion" Title="Akan Datang: Fitur Diskusi Ilmiah">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                 </svg>
                 <span>Diskusi</span>
+                <span class="pv-coming-soon-pill">Segera</span>
             </PvButton>
 
             <PvButton Variant="ghost" Size="sm" OnClick="CopyCitation">
@@ -145,6 +153,8 @@
 
 @code {
     [Parameter, EditorRequired] public PostDto Post { get; set; } = default!;
+    [Parameter] public string? AuthorHeadline { get; set; }
+    [Parameter] public string? AuthorInstitution { get; set; }
     [Parameter] public bool ShowStatusBadge { get; set; } = true;
     [Parameter] public bool IsClickable { get; set; } = true;
     [Parameter] public EventCallback<PostDto> OnPostUpdated { get; set; }
@@ -196,7 +206,12 @@
 
     private void HandleAppreciation()
     {
-        ToastService.Success("Apresiasi ilmiah berhasil dicatat.");
+        ToastService.Info("Fitur Apresiasi Ilmiah (Reactions) sedang dalam tahap pengembangan dan akan segera aktif pada pembaruan mendatang.");
+    }
+
+    private void HandleDiscussion()
+    {
+        ToastService.Info("Fitur Diskusi & Komentar (Comments) dijadwalkan pada rilis kolaborasi interaktif berikutnya.");
     }
 
     private void CopyCitation()

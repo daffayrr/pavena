@@ -1,0 +1,512 @@
+@page "/feed"
+@page "/feed/network"
+@page "/feed/discover"
+@inject IAcademicProfileClient ProfileClient
+@inject IScholarSessionService SessionService
+@inject IToastService ToastService
+@inject NavigationManager Navigation
+
+<PageTitle>Pavena — Linimasa Riset & Jaringan Akademik</PageTitle>
+
+<div class="pv-container" style="max-width: 1080px; padding-top: var(--pv-space-6); padding-bottom: var(--pv-space-8);">
+    <div class="pv-feed-layout">
+        
+        <!-- Left Column: Main Feed -->
+        <main>
+            <!-- Quick Post Composer Launcher / Inline Composer -->
+            @if (_showInlineComposer)
+            {
+                <div style="margin-bottom: var(--pv-space-5);">
+                    <PostComposer OnPostCreated="HandlePostCreated" OnCancel="() => _showInlineComposer = false" />
+                </div>
+            }
+            else
+            {
+                <div class="pv-quick-composer-card">
+                    <div class="pv-quick-composer-top">
+                        <PvAvatar Name="@SessionService.CurrentDisplayName" Size="md" Status="online" />
+                        <div class="pv-quick-composer-input" @onclick="() => _showInlineComposer = true" role="button" tabindex="0" aria-label="Mulai menulis catatan ilmiah">
+                            Bagikan hipotesis, temuan eksperimen, atau publikasi terkini...
+                        </div>
+                    </div>
+                    <div class="pv-quick-composer-actions">
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="pv-btn pv-btn-ghost pv-btn-sm" @onclick="() => _showInlineComposer = true">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-secondary);">
+                                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                                </svg>
+                                <span>Lampirkan Berkas</span>
+                            </button>
+                            <button type="button" class="pv-btn pv-btn-ghost pv-btn-sm" @onclick="() => _showInlineComposer = true">
+                                <span style="font-size: 0.9rem;">🔬</span>
+                                <span>Kategori Riset</span>
+                            </button>
+                        </div>
+                        <a href="/posts/create" class="pv-btn pv-btn-primary pv-btn-sm">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            <span>Tulis Lengkap</span>
+                        </a>
+                    </div>
+                </div>
+            }
+
+            <!-- Feed Tabs: My Network vs Discover -->
+            <div class="pv-feed-nav-bar">
+                <nav class="pv-feed-tabs-list" aria-label="Pilihan Linimasa">
+                    <button type="button"
+                            class="pv-feed-tab-btn @(_isDiscoverMode ? "" : "is-active")"
+                            @onclick="() => SwitchFeedMode(false)">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span>Jaringan Saya</span>
+                    </button>
+
+                    <button type="button"
+                            class="pv-feed-tab-btn @(_isDiscoverMode ? "is-active" : "")"
+                            @onclick="() => SwitchFeedMode(true)">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+                        </svg>
+                        <span>Eksplorasi Global (Discover)</span>
+                    </button>
+                </nav>
+
+                <!-- Refresh Button -->
+                <button type="button"
+                        class="pv-btn pv-btn-ghost pv-btn-sm"
+                        @onclick="RefreshFeedAsync"
+                        disabled="@(_isInitialLoading || _isRefreshing)"
+                        title="Segarkan linimasa">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="@(_isRefreshing ? "pv-spin" : "")">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                    <span>@(_isRefreshing ? "Menyegarkan..." : "Segarkan")</span>
+                </button>
+            </div>
+
+            <!-- Feed Content Stream -->
+            @if (_isInitialLoading)
+            {
+                <div style="display: flex; flex-direction: column; gap: var(--pv-space-4);">
+                    <FeedSkeleton />
+                    <FeedSkeleton />
+                    <FeedSkeleton />
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(_loadError))
+            {
+                <PvErrorState Title="Gagal Memuat Linimasa"
+                              Message="@_loadError"
+                              ActionText="Coba Lagi"
+                              OnAction="RefreshFeedAsync" />
+            }
+            else if (!_posts.Any())
+            {
+                <PvEmptyState Title="@(_isDiscoverMode ? "Belum Ada Post Publik Terkini" : "Linimasa Jaringan Anda Masih Sepi")"
+                              Message="@(_isDiscoverMode
+                                  ? "Jadilah yang pertama membagikan temuan riset terbuka kepada seluruh komunitas akademik."
+                                  : "Mulai terhubung dengan peneliti lain atau ikuti laboratorium terkemuka untuk melihat progres ilmiah mereka di sini.")"
+                              ActionText="@(_isDiscoverMode ? "Publikasikan Riset" : "Jelajahi Peneliti")"
+                              OnAction='@(() => Navigation.NavigateTo(_isDiscoverMode ? "/posts/create" : "/network/discover"))' />
+            }
+            else
+            {
+                <div style="display: flex; flex-direction: column; gap: var(--pv-space-4);">
+                    @foreach (var post in _posts)
+                    {
+                        <PostCard @key="post.Id"
+                                  Post="@post"
+                                  ShowStatusBadge="false"
+                                  OnPostUpdated="HandlePostUpdated"
+                                  OnPostDeleted="HandlePostDeleted" />
+                    }
+                </div>
+
+                <!-- Keyset Pagination Bar -->
+                <div class="pv-feed-pagination-bar">
+                    @if (!string.IsNullOrEmpty(_loadMoreError))
+                    {
+                        <div style="color: var(--pv-color-danger); font-size: 0.8125rem; display: flex; align-items: center; gap: 8px;">
+                            <span>@_loadMoreError</span>
+                            <button type="button" class="pv-btn pv-btn-ghost pv-btn-sm" @onclick="LoadMoreAsync">Coba Lagi</button>
+                        </div>
+                    }
+
+                    @if (_hasMore)
+                    {
+                        <PvButton Variant="outline"
+                                  Size="md"
+                                  OnClick="LoadMoreAsync"
+                                  Disabled="_isLoadingMore">
+                            @if (_isLoadingMore)
+                            {
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pv-spin">
+                                    <line x1="12" y1="2" x2="12" y2="6"></line>
+                                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                                    <line x1="2" y1="12" x2="6" y2="12"></line>
+                                    <line x1="18" y1="12" x2="22" y2="12"></line>
+                                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                                </svg>
+                                <span>Memuat artikel ilmiah berikutnya...</span>
+                            }
+                            else
+                            {
+                                <span>Muat Lebih Banyak Artikel</span>
+                            }
+                        </PvButton>
+                    }
+                    else
+                    {
+                        <div class="pv-feed-end-notice">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pv-color-secondary);">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <span>Anda telah meninjau seluruh catatan ilmiah terkini pada linimasa ini.</span>
+                        </div>
+                    }
+                </div>
+            }
+        </main>
+
+        <!-- Right Column: Sidebar Rails -->
+        <aside class="pv-feed-sidebar">
+            <!-- Author Profile Quick Card -->
+            <div class="pv-card" style="padding: var(--pv-space-5); text-align: center;">
+                <div style="display: flex; justify-content: center; margin-bottom: 0.75rem;">
+                    <a href="/profile" style="text-decoration: none;">
+                        <PvAvatar Name="@SessionService.CurrentDisplayName" Size="lg" Status="online" />
+                    </a>
+                </div>
+                <h3 style="font-size: 1rem; font-weight: 700; margin: 0 0 2px; color: var(--pv-color-text);">
+                    <a href="/profile" style="color: var(--pv-color-text); text-decoration: none;">
+                        @SessionService.CurrentDisplayName
+                    </a>
+                </h3>
+                <div style="font-size: 0.75rem; color: var(--pv-color-text-muted); margin-bottom: 1rem;">
+                    @@@SessionService.CurrentUsername
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid var(--pv-color-border); border-bottom: 1px solid var(--pv-color-border); padding: 10px 0; margin-bottom: 12px; font-size: 0.75rem;">
+                    <div>
+                        <a href="/network/connections" style="text-decoration: none; color: inherit;">
+                            <div style="font-weight: 700; font-size: 1rem; color: var(--pv-color-primary);">@_connectionsCount</div>
+                            <div style="color: var(--pv-color-text-muted);">Kolega</div>
+                        </a>
+                    </div>
+                    <div>
+                        <a href="/posts/mine" style="text-decoration: none; color: inherit;">
+                            <div style="font-weight: 700; font-size: 1rem; color: var(--pv-color-primary);">@_myPostsCount</div>
+                            <div style="color: var(--pv-color-text-muted);">Post Saya</div>
+                        </a>
+                    </div>
+                </div>
+
+                <a href="/posts/create" class="pv-btn pv-btn-outline pv-btn-sm" style="width: 100%;">
+                    Tulis Catatan Ilmiah
+                </a>
+            </div>
+
+            <!-- Discoverable Scholars Recommendations (Genuine backend data) -->
+            <div class="pv-card" style="padding: var(--pv-space-5);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="font-size: 0.9375rem; font-weight: 700; margin: 0; color: var(--pv-color-text);">
+                        Kolega Akademik
+                    </h3>
+                    <a href="/network/discover" style="font-size: 0.75rem; color: var(--pv-color-secondary); font-weight: 600; text-decoration: none;">
+                        Jelajahi →
+                    </a>
+                </div>
+
+                @if (_isLoadingScholars)
+                {
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div class="pv-skeleton-line" style="width: 100%; height: 28px;"></div>
+                        <div class="pv-skeleton-line" style="width: 100%; height: 28px;"></div>
+                    </div>
+                }
+                else if (_suggestedScholars.Any())
+                {
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        @foreach (var scholar in _suggestedScholars)
+                        {
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                                    <a href="/profile/@scholar.UserId" style="text-decoration: none; flex-shrink: 0;">
+                                        <PvAvatar Name="@scholar.DisplayName" Url="@scholar.AvatarUrl" Size="sm" />
+                                    </a>
+                                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        <a href="/profile/@scholar.UserId" style="font-weight: 600; font-size: 0.8125rem; color: var(--pv-color-text); text-decoration: none; display: block; overflow: hidden; text-overflow: ellipsis;">
+                                            @scholar.DisplayName
+                                        </a>
+                                        <div style="font-size: 0.6875rem; color: var(--pv-color-text-muted); overflow: hidden; text-overflow: ellipsis;">
+                                            @(scholar.PrimaryAffiliation ?? scholar.Headline ?? "Peneliti")
+                                        </div>
+                                    </div>
+                                </div>
+                                <PvButton Variant="outline" Size="sm" OnClick="() => ConnectWithScholarAsync(scholar.UserId, scholar.DisplayName)">
+                                    +
+                                </PvButton>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">
+                        Belum ada rekomendasi peneliti lain.
+                    </div>
+                }
+            </div>
+
+            <!-- Academic Feed Integrity Standards Notice -->
+            <div class="pv-card" style="padding: var(--pv-space-4); background-color: rgba(24, 124, 120, 0.05); border-color: rgba(24, 124, 120, 0.2);">
+                <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.8125rem; color: var(--pv-color-secondary); margin-bottom: 4px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span>Integritas Linimasa Ilmiah</span>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--pv-color-text-muted); line-height: 1.5;">
+                    Pavena menyusun konten secara kronologis murni (keyset cursor) tanpa manipulasi algoritma komersial. Privasi level riset dilindungi di sisi server.
+                </div>
+            </div>
+        </aside>
+
+    </div>
+</div>
+
+@code {
+    private List<PostDto> _posts = new();
+    private string? _nextCursor;
+    private bool _hasMore;
+    private bool _isDiscoverMode;
+    private bool _isInitialLoading = true;
+    private bool _isRefreshing;
+    private bool _isLoadingMore;
+    private string? _loadError;
+    private string? _loadMoreError;
+    private bool _showInlineComposer;
+
+    private int _connectionsCount = 0;
+    private int _myPostsCount = 0;
+    private List<ResearcherDiscoveryDto> _suggestedScholars = new();
+    private bool _isLoadingScholars = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var uri = Navigation.Uri;
+        var isDiscover = uri.EndsWith("/discover", StringComparison.OrdinalIgnoreCase);
+        if (_isDiscoverMode != isDiscover || !_posts.Any())
+        {
+            _isDiscoverMode = isDiscover;
+            await LoadInitialFeedAsync();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSidebarDataAsync();
+    }
+
+    private async Task SwitchFeedMode(bool discover)
+    {
+        if (_isDiscoverMode == discover) return;
+
+        _isDiscoverMode = discover;
+        Navigation.NavigateTo(_isDiscoverMode ? "/feed/discover" : "/feed/network");
+        await LoadInitialFeedAsync();
+    }
+
+    private async Task LoadInitialFeedAsync()
+    {
+        _isInitialLoading = true;
+        _loadError = null;
+        _nextCursor = null;
+        _hasMore = false;
+
+        try
+        {
+            var res = _isDiscoverMode
+                ? await ProfileClient.GetDiscoverFeedAsync(limit: 10, cursor: null)
+                : await ProfileClient.GetMyNetworkFeedAsync(limit: 10, cursor: null);
+
+            if (res != null)
+            {
+                _posts = res.Items.ToList();
+                _nextCursor = res.NextCursor;
+                _hasMore = res.HasMore;
+            }
+            else
+            {
+                _loadError = "Tidak dapat memuat konten linimasa. Periksa koneksi jaringan Anda.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"Terjadi kesalahan saat memuat linimasa: {ex.Message}";
+        }
+        finally
+        {
+            _isInitialLoading = false;
+        }
+    }
+
+    private async Task RefreshFeedAsync()
+    {
+        _isRefreshing = true;
+        _loadError = null;
+        _loadMoreError = null;
+
+        try
+        {
+            var res = _isDiscoverMode
+                ? await ProfileClient.GetDiscoverFeedAsync(limit: 10, cursor: null)
+                : await ProfileClient.GetMyNetworkFeedAsync(limit: 10, cursor: null);
+
+            if (res != null)
+            {
+                _posts = res.Items.ToList();
+                _nextCursor = res.NextCursor;
+                _hasMore = res.HasMore;
+                ToastService.Success("Linimasa berhasil diperbarui.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error($"Gagal menyegarkan linimasa: {ex.Message}");
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        if (_isLoadingMore || !_hasMore || string.IsNullOrWhiteSpace(_nextCursor)) return;
+
+        _isLoadingMore = true;
+        _loadMoreError = null;
+
+        try
+        {
+            var res = _isDiscoverMode
+                ? await ProfileClient.GetDiscoverFeedAsync(limit: 10, cursor: _nextCursor)
+                : await ProfileClient.GetMyNetworkFeedAsync(limit: 10, cursor: _nextCursor);
+
+            if (res != null)
+            {
+                // Prevent duplicates strictly by ID
+                var existingIds = new HashSet<Guid>(_posts.Select(p => p.Id));
+                var newItems = res.Items.Where(p => !existingIds.Contains(p.Id)).ToList();
+                
+                _posts.AddRange(newItems);
+                _nextCursor = res.NextCursor;
+                _hasMore = res.HasMore;
+            }
+            else
+            {
+                _loadMoreError = "Gagal memuat artikel berikutnya.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _loadMoreError = $"Gagal memuat artikel berikutnya: {ex.Message}";
+        }
+        finally
+        {
+            _isLoadingMore = false;
+        }
+    }
+
+    private async Task LoadSidebarDataAsync()
+    {
+        _isLoadingScholars = true;
+        try
+        {
+            // 1. Fetch real discoverable scholars from database
+            var scholars = await ProfileClient.GetDiscoverResearchersAsync(limit: 4);
+            _suggestedScholars = scholars.Take(4).ToList();
+
+            // 2. Fetch connections count
+            var connections = await ProfileClient.GetAcceptedConnectionsAsync();
+            _connectionsCount = connections.Count;
+
+            // 3. Fetch author posts count
+            var myPosts = await ProfileClient.GetMyPostsAsync();
+            _myPostsCount = myPosts.Count;
+        }
+        catch
+        {
+            // Fallback graceful degradation for sidebar metrics
+        }
+        finally
+        {
+            _isLoadingScholars = false;
+        }
+    }
+
+    private async Task ConnectWithScholarAsync(Guid targetUserId, string scholarName)
+    {
+        var ok = await ProfileClient.SendConnectionRequestAsync(targetUserId);
+        if (ok)
+        {
+            ToastService.Success($"Permintaan koneksi dikirimkan ke {scholarName}.");
+            _suggestedScholars.RemoveAll(s => s.UserId == targetUserId);
+        }
+        else
+        {
+            ToastService.Error("Gagal mengirimkan permintaan koneksi.");
+        }
+    }
+
+    private void HandlePostCreated(PostDto post)
+    {
+        _showInlineComposer = false;
+        if (post.Status == "Published")
+        {
+            // If in Discover mode but post is Connections-only, do not leak into Discover feed
+            if (!_isDiscoverMode || post.Visibility == "Public")
+            {
+                _posts.Insert(0, post);
+            }
+        }
+    }
+
+    private void HandlePostUpdated(PostDto updated)
+    {
+        var idx = _posts.FindIndex(p => p.Id == updated.Id);
+        if (idx >= 0)
+        {
+            // If post was archived or changed to OnlyMe by author, remove it from feed
+            if (updated.Status == "Archived" || (_isDiscoverMode && updated.Visibility != "Public"))
+            {
+                _posts.RemoveAt(idx);
+            }
+            else
+            {
+                _posts[idx] = updated;
+            }
+        }
+    }
+
+    private void HandlePostDeleted(Guid deletedId)
+    {
+        _posts.RemoveAll(p => p.Id == deletedId);
+    }
+}

@@ -109,11 +109,12 @@
     <!-- Bottom Actions / Owner Toolbar -->
     <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--pv-color-border); padding-top: 16px; flex-wrap: wrap; gap: 12px;">
         <div style="display: flex; align-items: center; gap: 8px;">
-            <PvButton Variant="outline" Size="sm" OnClick="HandleAppreciation">
+            <PvButton Variant="outline" Size="sm" OnClick="HandleAppreciation" Title="Akan Datang: Fitur Apresiasi Ilmiah">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
                 </svg>
                 <span>Apresiasi Ilmiah</span>
+                <span class="pv-coming-soon-pill">Segera</span>
             </PvButton>
 
             <PvButton Variant="outline" Size="sm" OnClick="CopyCitation">
@@ -198,7 +199,7 @@
 
     private void HandleAppreciation()
     {
-        ToastService.Success("Apresiasi ilmiah berhasil dicatat.");
+        ToastService.Info("Fitur Apresiasi Ilmiah (Reactions) sedang dalam tahap pengembangan dan akan segera aktif pada pembaruan mendatang.");
     }
 
     private void CopyCitation()

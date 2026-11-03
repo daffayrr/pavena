@@ -210,4 +210,20 @@ public class FeedApiIntegrationTests : IClassFixture<PavenaApiFactory>
         var feedB = await resB.Content.ReadFromJsonAsync<FeedResponseDto>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         feedB!.Items.Should().NotContain(i => i.Id == postA.Id);
     }
+
+    [Fact]
+    public async Task NetworkFeed_ExplicitRoute_ReturnsMyNetworkFeed()
+    {
+        var (token, _, _) = await CreateAndAuthenticateUserAsync("netAlias");
+        var post = await CreatePostAsync(token, "Post on network route", "Public");
+
+        using var msg = new HttpRequestMessage(HttpMethod.Get, "/api/v1/feed/network");
+        msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var res = await _client.SendAsync(msg);
+        res.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var feed = await res.Content.ReadFromJsonAsync<FeedResponseDto>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        feed.Should().NotBeNull();
+        feed!.Items.Should().Contain(p => p.Id == post.Id);
+    }
 }

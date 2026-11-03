@@ -1769,5 +1769,192 @@
   border: 1px solid rgba(127, 140, 141, 0.3);
 }
 
+.pv-coming-soon-pill {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: var(--pv-radius-full);
+  background-color: var(--pv-color-surface-hover);
+  color: var(--pv-color-text-subtle);
+  border: 1px solid var(--pv-color-border);
+  margin-left: 4px;
+}
+
+/* ============================================================================
+   MILESTONE L — FEED EXPERIENCE & SOCIAL NETWORKING INTEGRATION
+   ============================================================================ */
+
+/* Feed Layout Container */
+.pv-feed-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--pv-space-6);
+  align-items: start;
+}
+
+@media (max-width: 992px) {
+  .pv-feed-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Feed Navigation Tabs */
+.pv-feed-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--pv-color-border);
+  margin-bottom: var(--pv-space-5);
+  background-color: var(--pv-color-surface);
+  border-radius: var(--pv-radius-lg) var(--pv-radius-lg) 0 0;
+  padding: 0 var(--pv-space-4);
+}
+
+.pv-feed-tabs-list {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-2);
+}
+
+.pv-feed-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--pv-space-4) var(--pv-space-3);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--pv-color-text-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none !important;
+}
+
+.pv-feed-tab-btn:hover {
+  color: var(--pv-color-text);
+}
+
+.pv-feed-tab-btn.is-active {
+  color: var(--pv-color-secondary);
+  border-bottom-color: var(--pv-color-secondary);
+}
+
+/* Quick Composer Trigger */
+.pv-quick-composer-card {
+  background-color: var(--pv-color-surface);
+  border: 1px solid var(--pv-color-border);
+  border-radius: var(--pv-radius-lg);
+  padding: var(--pv-space-4);
+  margin-bottom: var(--pv-space-5);
+  box-shadow: var(--pv-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pv-space-3);
+}
+
+.pv-quick-composer-top {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-space-3);
+}
+
+.pv-quick-composer-input {
+  flex: 1;
+  background-color: var(--pv-color-surface-hover);
+  border: 1px solid var(--pv-color-border);
+  border-radius: var(--pv-radius-full);
+  padding: 10px 18px;
+  font-size: 0.875rem;
+  color: var(--pv-color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.pv-quick-composer-input:hover {
+  border-color: var(--pv-color-secondary);
+  background-color: var(--pv-color-surface);
+  color: var(--pv-color-text);
+}
+
+.pv-quick-composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--pv-color-border);
+  padding-top: var(--pv-space-3);
+  margin-top: 2px;
+}
+
+/* Feed Skeleton Loading */
+.pv-feed-skeleton-card {
+  background-color: var(--pv-color-surface);
+  border: 1px solid var(--pv-color-border);
+  border-radius: var(--pv-radius-lg);
+  padding: var(--pv-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pv-space-4);
+}
+
+.pv-skeleton-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, var(--pv-color-surface-hover) 25%, var(--pv-color-border) 50%, var(--pv-color-surface-hover) 75%);
+  background-size: 200% 100%;
+  animation: pv-skeleton-shine 1.5s infinite;
+}
+
+.pv-skeleton-line {
+  height: 14px;
+  border-radius: var(--pv-radius-sm);
+  background: linear-gradient(90deg, var(--pv-color-surface-hover) 25%, var(--pv-color-border) 50%, var(--pv-color-surface-hover) 75%);
+  background-size: 200% 100%;
+  animation: pv-skeleton-shine 1.5s infinite;
+}
+
+@keyframes pv-skeleton-shine {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Feed Load More & Pagination */
+.pv-feed-pagination-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pv-space-3);
+  padding: var(--pv-space-5) 0;
+}
+
+.pv-feed-end-notice {
+  text-align: center;
+  padding: var(--pv-space-6) var(--pv-space-4);
+  font-size: 0.8125rem;
+  color: var(--pv-color-text-muted);
+  border-top: 1px solid var(--pv-color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Feed Right Rail */
+.pv-feed-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pv-space-5);
+  position: sticky;
+  top: 76px;
+}
+
+
 
 
