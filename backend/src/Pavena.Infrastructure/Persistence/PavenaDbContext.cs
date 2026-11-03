@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Pavena.Application.Common.Interfaces;
 using Pavena.Domain.Common;
+using Pavena.Domain.Entities.Challenges;
 using Pavena.Domain.Entities.Documents;
 using Pavena.Domain.Entities.Identity;
 using Pavena.Domain.Entities.Organizations;
@@ -16,6 +17,7 @@ namespace Pavena.Infrastructure.Persistence;
 public class PavenaDbContext : IdentityDbContext<User, PlatformRole, Guid>, IPavenaDbContext
 {
     public DbSet<PlatformRole> PlatformRoles => Roles;
+    public DbSet<IdentityUserRole<Guid>> UserPlatformRoles => UserRoles;
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<UserEducation> UserEducations => Set<UserEducation>();
     public DbSet<UserExperience> UserExperiences => Set<UserExperience>();
@@ -51,6 +53,14 @@ public class PavenaDbContext : IdentityDbContext<User, PlatformRole, Guid>, IPav
     public DbSet<CompilationArtifact> CompilationArtifacts => Set<CompilationArtifact>();
     public DbSet<DocumentComment> DocumentComments => Set<DocumentComment>();
     public DbSet<DocumentReview> DocumentReviews => Set<DocumentReview>();
+
+    public DbSet<IndustryChallenge> IndustryChallenges => Set<IndustryChallenge>();
+    public DbSet<ChallengeAttachment> ChallengeAttachments => Set<ChallengeAttachment>();
+    public DbSet<ChallengeResearchDomain> ChallengeResearchDomains => Set<ChallengeResearchDomain>();
+    public DbSet<ChallengeExpertiseRequirement> ChallengeExpertiseRequirements => Set<ChallengeExpertiseRequirement>();
+    public DbSet<ChallengeApproval> ChallengeApprovals => Set<ChallengeApproval>();
+    public DbSet<ChallengeActivityLog> ChallengeActivityLogs => Set<ChallengeActivityLog>();
+    public DbSet<ChallengeNdaAgreement> ChallengeNdaAgreements => Set<ChallengeNdaAgreement>();
 
     public PavenaDbContext(DbContextOptions<PavenaDbContext> options) : base(options)
     {

@@ -1,0 +1,596 @@
+@page "/industry/challenges"
+@rendermode InteractiveServer
+
+@using System.Text
+@using Pavena.Application.Challenges.DTOs
+@using Pavena.Domain.Enums
+@using Pavena.Web.Components.Common
+@using Pavena.Web.Services.Challenges
+@using Pavena.Web.Services.Toast
+
+@inject IChallengeClient ChallengeClient
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Portal Sponsor & Manajemen Tantangan Riset — Pavena</PageTitle>
+
+<div class="pv-container" style="max-width: 1200px; padding: 2rem 1rem;">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; background: rgba(23, 54, 93, 0.1); color: var(--pv-color-primary);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                </span>
+                <h1 style="font-size: 1.875rem; font-weight: 700; color: var(--pv-color-text); margin: 0;">Portal Sponsor Industri</h1>
+            </div>
+            <p style="color: var(--pv-color-text-muted); font-size: 0.9375rem; margin: 0;">
+                Kelola tantangan riset perusahaan Anda, persetujuan tata kelola (governance approval), publikasi, dan perlindungan NDA.
+            </p>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+            <button class="pv-btn pv-btn-primary" @onclick="OpenCreateModal" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Buat Tantangan Baru
+            </button>
+        </div>
+    </div>
+
+    <!-- Challenges Table / List -->
+    @if (_isLoading)
+    {
+        <div style="text-align: center; padding: 4rem 1rem;">
+            <div class="pv-spinner" style="margin-bottom: 1rem;"></div>
+            <p style="color: var(--pv-color-text-muted);">Memuat daftar tantangan...</p>
+        </div>
+    }
+    else if (_challenges == null || _challenges.Count == 0)
+    {
+        <div class="pv-card" style="text-align: center; padding: 4rem 2rem;">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-text); margin: 0 0 0.5rem 0;">
+                Belum Ada Tantangan Riset Terdaftar
+            </h3>
+            <p style="color: var(--pv-color-text-muted); font-size: 0.875rem; margin: 0 0 1.5rem 0;">
+                Mulai inisiasi tantangan penelitian untuk mendapatkan solusi inovatif dari jejaring akademisi dan peneliti global.
+            </p>
+            <button class="pv-btn pv-btn-primary" @onclick="OpenCreateModal">
+                Inisiasi Draf Tantangan Sekarang
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="pv-card" style="padding: 0; overflow: hidden;">
+            <table class="pv-table" style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                <thead>
+                    <tr style="background: var(--pv-color-surface); border-bottom: 1px solid var(--pv-color-border); text-align: left;">
+                        <th style="padding: 1rem 1.25rem; font-weight: 600; color: var(--pv-color-text);">Judul Tantangan</th>
+                        <th style="padding: 1rem; font-weight: 600; color: var(--pv-color-text);">Status</th>
+                        <th style="padding: 1rem; font-weight: 600; color: var(--pv-color-text);">Anggaran</th>
+                        <th style="padding: 1rem; font-weight: 600; color: var(--pv-color-text);">Batas Waktu</th>
+                        <th style="padding: 1rem; font-weight: 600; color: var(--pv-color-text);">Lampiran</th>
+                        <th style="padding: 1rem 1.25rem; font-weight: 600; color: var(--pv-color-text); text-align: right;">Aksi Tata Kelola</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var ch in _challenges)
+                    {
+                        <tr style="border-bottom: 1px solid var(--pv-color-border);">
+                            <td style="padding: 1rem 1.25rem;">
+                                <div style="font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.25rem;">
+                                    <a href="/challenges/@ch.Id" style="color: inherit; text-decoration: none;">
+                                        @ch.Title
+                                    </a>
+                                </div>
+                                <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">
+                                    Kelayakan: @ch.Eligibility
+                                </div>
+                            </td>
+                            <td style="padding: 1rem;">
+                                @if (ch.Status == ChallengeStatus.Draft)
+                                {
+                                    <span class="pv-badge pv-badge-ghost">Draf</span>
+                                }
+                                else if (ch.Status == ChallengeStatus.SubmittedForApproval)
+                                {
+                                    <span class="pv-badge pv-badge-warning">Menunggu Review</span>
+                                }
+                                else if (ch.Status == ChallengeStatus.Approved)
+                                {
+                                    <span class="pv-badge pv-badge-secondary">Disetujui Org</span>
+                                }
+                                else if (ch.Status == ChallengeStatus.Published)
+                                {
+                                    <span class="pv-badge pv-badge-primary">Dipublikasikan</span>
+                                }
+                                else if (ch.Status == ChallengeStatus.OpenForProposals)
+                                {
+                                    <span class="pv-badge pv-badge-success">Buka Proposal</span>
+                                }
+                                else
+                                {
+                                    <span class="pv-badge pv-badge-ghost">@ch.Status</span>
+                                }
+                            </td>
+                            <td style="padding: 1rem; font-weight: 500;">
+                                @FormatBudget(ch.Currency, ch.MinBudget, ch.MaxBudget)
+                            </td>
+                            <td style="padding: 1rem; color: var(--pv-color-text-muted);">
+                                @ch.SubmissionDeadlineUtc.ToString("dd MMM yyyy")
+                            </td>
+                            <td style="padding: 1rem;">
+                                <div style="font-size: 0.8125rem;">
+                                    <span>@ch.PublicAttachmentCount Publik</span>
+                                    @if (ch.ConfidentialAttachmentCount > 0)
+                                    {
+                                        <span style="color: var(--pv-color-warning); margin-left: 0.25rem;">(@ch.ConfidentialAttachmentCount NDA)</span>
+                                    }
+                                </div>
+                            </td>
+                            <td style="padding: 1rem 1.25rem; text-align: right;">
+                                <div style="display: inline-flex; gap: 0.375rem; align-items: center;">
+                                    @if (ch.Status == ChallengeStatus.Draft)
+                                    {
+                                        <button class="pv-btn pv-btn-sm pv-btn-secondary" @onclick="() => SubmitForApproval(ch.Id)">
+                                            Kirim Review
+                                        </button>
+                                    }
+                                    else if (ch.Status == ChallengeStatus.SubmittedForApproval)
+                                    {
+                                        <button class="pv-btn pv-btn-sm pv-btn-primary" @onclick="() => ApproveChallenge(ch.Id)">
+                                            Setujui
+                                        </button>
+                                    }
+                                    else if (ch.Status == ChallengeStatus.Approved)
+                                    {
+                                        <button class="pv-btn pv-btn-sm pv-btn-primary" @onclick="() => PublishChallenge(ch.Id)">
+                                            Terbitkan
+                                        </button>
+                                    }
+                                    else if (ch.Status == ChallengeStatus.Published)
+                                    {
+                                        <button class="pv-btn pv-btn-sm pv-btn-success" @onclick="() => OpenForProposals(ch.Id)">
+                                            Buka Proposal
+                                        </button>
+                                    }
+                                    else if (ch.Status == ChallengeStatus.OpenForProposals)
+                                    {
+                                        <button class="pv-btn pv-btn-sm pv-btn-ghost" @onclick="() => CloseChallenge(ch.Id)">
+                                            Tutup
+                                        </button>
+                                    }
+
+                                    <button class="pv-btn pv-btn-sm pv-btn-ghost" @onclick="() => OpenAttachmentModal(ch.Id)" title="Kelola Lampiran">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- Modal Create Challenge -->
+@if (_showCreateModal)
+{
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem;">
+        <div class="pv-card" style="max-width: 750px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; padding: 0; overflow: hidden;">
+            <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--pv-color-border); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--pv-color-text); margin: 0;">
+                    Inisiasi Tantangan Riset Industri Baru
+                </h3>
+                <button class="pv-btn pv-btn-ghost pv-btn-sm" @onclick="CloseCreateModal">✕</button>
+            </div>
+
+            <div style="padding: 1.5rem; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                        Judul Tantangan Riset *
+                    </label>
+                    <input type="text" class="pv-input" placeholder="Contoh: Optimasi Efisiensi Baterai Solid-State pada Suhu Ekstrem" @bind="_formTitle" style="width: 100%;" />
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                        Ringkasan Singkat (Summary) *
+                    </label>
+                    <textarea class="pv-input" rows="2" placeholder="Ringkasan eksekutif tentang masalah dan tujuan tantangan..." @bind="_formSummary" style="width: 100%;"></textarea>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                        Rumusan Masalah (Problem Statement) *
+                    </label>
+                    <textarea class="pv-input" rows="3" placeholder="Jelaskan kendala teknis riil yang dihadapi industri..." @bind="_formProblemStatement" style="width: 100%;"></textarea>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                        Ruang Lingkup Penelitian (Scope) *
+                    </label>
+                    <textarea class="pv-input" rows="2" placeholder="Batasan material, model komputasi, atau pengujian..." @bind="_formResearchScope" style="width: 100%;"></textarea>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                        Target Hasil Riset (Outcomes) *
+                    </label>
+                    <textarea class="pv-input" rows="2" placeholder="Contoh: Prototype lab TRL-4, model simulasi numerik, laporan validasi..." @bind="_formExpectedOutcomes" style="width: 100%;"></textarea>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                            Kelayakan Institusi
+                        </label>
+                        <select class="pv-input" @bind="_formEligibility" style="width: 100%;">
+                            <option value="@InstitutionalEligibility.OpenToAll">Terbuka untuk Semua Peneliti Terverifikasi</option>
+                            <option value="@InstitutionalEligibility.UniversitiesOnly">Hanya Universitas Terakreditasi</option>
+                            <option value="@InstitutionalEligibility.AccreditedResearchInstitutesOnly">Hanya Lembaga Riset Resmi</option>
+                            <option value="@InstitutionalEligibility.ConsortiumRequired">Konsorsium Industri-Akademisi</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                            Batas Waktu Pengajuan
+                        </label>
+                        <input type="date" class="pv-input" @bind="_deadlineDate" style="width: 100%;" />
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 100px 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                            Mata Uang
+                        </label>
+                        <input type="text" class="pv-input" @bind="_formCurrency" style="width: 100%;" />
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                            Anggaran Min
+                        </label>
+                        <input type="number" class="pv-input" @bind="_formMinBudget" style="width: 100%;" />
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                            Anggaran Max
+                        </label>
+                        <input type="number" class="pv-input" @bind="_formMaxBudget" style="width: 100%;" />
+                    </div>
+                </div>
+
+                <!-- NDA Settings -->
+                <div style="border-top: 1px solid var(--pv-color-border); padding-top: 1rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; color: var(--pv-color-text); cursor: pointer; margin-bottom: 0.75rem;">
+                        <input type="checkbox" @bind="_formRequiresManualNda" />
+                        <strong>Wajibkan Persetujuan Manual Sponsor untuk Setiap Tanda Tangan NDA</strong>
+                    </label>
+
+                    <div>
+                        <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                            Teks Klausul NDA Khusus (Opsional)
+                        </label>
+                        <textarea class="pv-input" rows="2" placeholder="Kosongkan untuk menggunakan standar Pavena Research NDA v1.0..." @bind="_formNdaTermsText" style="width: 100%;"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--pv-color-border); display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button class="pv-btn pv-btn-ghost" @onclick="CloseCreateModal" disabled="@_isSubmitting">Batal</button>
+                <button class="pv-btn pv-btn-primary" @onclick="SubmitCreateChallenge" disabled="@_isSubmitting">
+                    Simpan Draf Tantangan
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Attachment Upload -->
+@if (_showAttachmentModal)
+{
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem;">
+        <div class="pv-card" style="max-width: 550px; width: 100%; padding: 1.5rem;">
+            <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--pv-color-text); margin: 0 0 1rem 0;">
+                Unggah Lampiran Spesifikasi Teknis
+            </h3>
+
+            <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                    <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                        Nama Berkas
+                    </label>
+                    <input type="text" class="pv-input" placeholder="contoh_dataset_skema.pdf" @bind="_attachmentFileName" style="width: 100%;" />
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                        Tingkat Kerahasiaan Dokumen
+                    </label>
+                    <select class="pv-input" @bind="_attachmentConfidentiality" style="width: 100%;">
+                        <option value="@AttachmentConfidentialityLevel.PublicBriefing">Publik (Terbuka untuk Umum)</option>
+                        <option value="@AttachmentConfidentialityLevel.ConfidentialNdaRequired">Rahasia — Hanya Penandatangan NDA</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button class="pv-btn pv-btn-ghost" @onclick="CloseAttachmentModal">Tutup</button>
+                <button class="pv-btn pv-btn-primary" @onclick="SaveAttachment">Simpan Lampiran</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private bool _isSubmitting = false;
+    private List<ChallengeSummaryDto>? _challenges;
+
+    // Form fields
+    private bool _showCreateModal = false;
+    private string _formTitle = string.Empty;
+    private string _formSummary = string.Empty;
+    private string _formProblemStatement = string.Empty;
+    private string _formResearchScope = string.Empty;
+    private string _formExpectedOutcomes = string.Empty;
+    private InstitutionalEligibility _formEligibility = InstitutionalEligibility.OpenToAll;
+    private DateTime _deadlineDate = DateTime.UtcNow.AddDays(45);
+    private string _formCurrency = "USD";
+    private decimal? _formMinBudget = 50000;
+    private decimal? _formMaxBudget = 100000;
+    private bool _formRequiresManualNda = false;
+    private string? _formNdaTermsText;
+
+    // Attachment Modal state
+    private bool _showAttachmentModal = false;
+    private Guid _activeAttachmentChallengeId;
+    private string _attachmentFileName = string.Empty;
+    private AttachmentConfidentialityLevel _attachmentConfidentiality = AttachmentConfidentialityLevel.ConfidentialNdaRequired;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMyChallenges();
+    }
+
+    private async Task LoadMyChallenges()
+    {
+        _isLoading = true;
+        try
+        {
+            _challenges = await ChallengeClient.SearchChallengesAsync(page: 1, pageSize: 50);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal memuat daftar tantangan: " + ex.Message);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        _formTitle = string.Empty;
+        _formSummary = string.Empty;
+        _formProblemStatement = string.Empty;
+        _formResearchScope = string.Empty;
+        _formExpectedOutcomes = string.Empty;
+        _formEligibility = InstitutionalEligibility.OpenToAll;
+        _deadlineDate = DateTime.UtcNow.AddDays(45);
+        _formCurrency = "USD";
+        _formMinBudget = 50000;
+        _formMaxBudget = 100000;
+        _formRequiresManualNda = false;
+        _formNdaTermsText = null;
+
+        _showCreateModal = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        _showCreateModal = false;
+    }
+
+    private async Task SubmitCreateChallenge()
+    {
+        if (string.IsNullOrWhiteSpace(_formTitle) || string.IsNullOrWhiteSpace(_formSummary))
+        {
+            ToastService.ShowError("Mohon lengkapi judul dan ringkasan tantangan.");
+            return;
+        }
+
+        _isSubmitting = true;
+        try
+        {
+            var req = new CreateChallengeRequest(
+                OrganizationId: Guid.Parse("99999999-8888-7777-6666-555555555555"),
+                Title: _formTitle.Trim(),
+                Summary: _formSummary.Trim(),
+                ProblemStatement: _formProblemStatement.Trim(),
+                ResearchScope: _formResearchScope.Trim(),
+                ExpectedOutcomes: _formExpectedOutcomes.Trim(),
+                SubmissionDeadlineUtc: _deadlineDate,
+                Visibility: ChallengeVisibility.Public,
+                Eligibility: _formEligibility,
+                Currency: _formCurrency,
+                MinBudget: _formMinBudget,
+                MaxBudget: _formMaxBudget,
+                EstimatedDurationMonths: 12,
+                RequiresManualNdaApproval: _formRequiresManualNda,
+                NdaTermsText: _formNdaTermsText,
+                Domains: new() { new CreateDomainRequest("Artificial Intelligence", "Autonomous Systems", true) },
+                Expertise: new() { new CreateExpertiseRequest("System Optimization", RequirementImportance.Required) }
+            );
+
+            var created = await ChallengeClient.CreateChallengeAsync(req);
+            if (created != null)
+            {
+                ToastService.ShowSuccess("Draf tantangan berhasil dibuat.");
+                _showCreateModal = false;
+                await LoadMyChallenges();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal membuat tantangan: " + ex.Message);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task SubmitForApproval(Guid id)
+    {
+        try
+        {
+            var res = await ChallengeClient.SubmitForApprovalAsync(id, "Pengajuan review tata kelola draf tantangan.");
+            if (res)
+            {
+                ToastService.ShowSuccess("Tantangan diajukan untuk tinjauan tata kelola.");
+                await LoadMyChallenges();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal mengajukan persetujuan: " + ex.Message);
+        }
+    }
+
+    private async Task ApproveChallenge(Guid id)
+    {
+        try
+        {
+            var req = new ChallengeDecisionRequest(ChallengeApprovalDecision.Approved, "Disetujui oleh Administrator Organisasi.");
+            var res = await ChallengeClient.ProcessApprovalDecisionAsync(id, req);
+            if (res)
+            {
+                ToastService.ShowSuccess("Tantangan berhasil disetujui.");
+                await LoadMyChallenges();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal menyetujui tantangan: " + ex.Message);
+        }
+    }
+
+    private async Task PublishChallenge(Guid id)
+    {
+        try
+        {
+            var res = await ChallengeClient.PublishChallengeAsync(id);
+            if (res)
+            {
+                ToastService.ShowSuccess("Tantangan berhasil diterbitkan ke jejaring riset Pavena!");
+                await LoadMyChallenges();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal menerbitkan tantangan: " + ex.Message);
+        }
+    }
+
+    private async Task OpenForProposals(Guid id)
+    {
+        try
+        {
+            var res = await ChallengeClient.OpenProposalsAsync(id);
+            if (res)
+            {
+                ToastService.ShowSuccess("Penerimaan proposal riset dibuka.");
+                await LoadMyChallenges();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal membuka proposal: " + ex.Message);
+        }
+    }
+
+    private async Task CloseChallenge(Guid id)
+    {
+        try
+        {
+            var res = await ChallengeClient.CloseChallengeAsync(id, "Tantangan telah mencapai batas waktu.");
+            if (res)
+            {
+                ToastService.ShowInfo("Tantangan riset telah ditutup.");
+                await LoadMyChallenges();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal menutup tantangan: " + ex.Message);
+        }
+    }
+
+    private void OpenAttachmentModal(Guid challengeId)
+    {
+        _activeAttachmentChallengeId = challengeId;
+        _attachmentFileName = string.Empty;
+        _attachmentConfidentiality = AttachmentConfidentialityLevel.ConfidentialNdaRequired;
+        _showAttachmentModal = true;
+    }
+
+    private void CloseAttachmentModal()
+    {
+        _showAttachmentModal = false;
+    }
+
+    private async Task SaveAttachment()
+    {
+        if (string.IsNullOrWhiteSpace(_attachmentFileName))
+        {
+            ToastService.ShowError("Nama berkas tidak boleh kosong.");
+            return;
+        }
+
+        try
+        {
+            var dummyBytes = Encoding.UTF8.GetBytes("Sample challenge attachment content for NDA verification.");
+            var res = await ChallengeClient.UploadAttachmentAsync(
+                _activeAttachmentChallengeId,
+                _attachmentFileName.Trim(),
+                dummyBytes,
+                "application/pdf",
+                _attachmentConfidentiality,
+                "Lampiran dokumen spesifikasi tantangan industri");
+
+            if (res != null)
+            {
+                ToastService.ShowSuccess("Lampiran berhasil diunggah.");
+                _showAttachmentModal = false;
+                await LoadMyChallenges();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal mengunggah lampiran: " + ex.Message);
+        }
+    }
+
+    private string FormatBudget(string? currency, decimal? min, decimal? max)
+    {
+        var cur = currency ?? "USD";
+        if (!min.HasValue && !max.HasValue) return "Dinegosiasikan";
+        if (min.HasValue && max.HasValue) return $"{cur} {min.Value:N0} – {max.Value:N0}";
+        if (min.HasValue) return $"Mulai {cur} {min.Value:N0}";
+        return max.HasValue ? $"Hingga {cur} {max.Value:N0}" : "Dinegosiasikan";
+    }
+}

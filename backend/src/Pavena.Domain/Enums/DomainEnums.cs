@@ -256,3 +256,54 @@ public enum CommentStatus
     Resolved = 2
 }
 
+public enum ChallengeStatus
+{
+    Draft = 1,
+    SubmittedForApproval = 2,
+    Approved = 3,
+    Published = 4,
+    OpenForProposals = 5,
+    UnderReview = 6,
+    Awarded = 7,
+    Closed = 8,
+    Cancelled = 9,
+    ChangesRequested = 10
+}
+
+public enum ChallengeVisibility
+{
+    Public = 1,
+    AuthenticatedUsersOnly = 2,
+    InvitationOnly = 3
+}
+
+public enum InstitutionalEligibility
+{
+    OpenToAll = 1,
+    UniversitiesOnly = 2,
+    AccreditedResearchInstitutesOnly = 3,
+    ConsortiumRequired = 4
+}
+
+public enum AttachmentConfidentialityLevel
+{
+    PublicBriefing = 1,
+    ConfidentialNdaRequired = 2
+}
+
+public enum ChallengeApprovalDecision
+{
+    Pending = 1,
+    Approved = 2,
+    Rejected = 3,
+    ChangesRequested = 4
+}
+
+public enum RequirementImportance
+{
+    Required = 1,
+    Preferred = 2,
+    Optional = 3
+}
+
+

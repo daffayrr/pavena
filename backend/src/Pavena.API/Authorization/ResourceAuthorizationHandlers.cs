@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Pavena.Application.Common.Interfaces;
+using Pavena.Domain.Entities.Challenges;
 using Pavena.Domain.Entities.Documents;
 using Pavena.Domain.Entities.Identity;
 using Pavena.Domain.Entities.Organizations;
@@ -324,3 +325,121 @@ public class PostAuthorizationHandler : AuthorizationHandler<ResourceOperationRe
         }
     }
 }
+
+public class ChallengeAuthorizationHandler : AuthorizationHandler<ResourceOperationRequirement, IndustryChallenge>
+{
+    private readonly IPavenaDbContext _dbContext;
+
+    public ChallengeAuthorizationHandler(IPavenaDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
+    protected override async Task HandleRequirementAsync(
+        AuthorizationHandlerContext context,
+        ResourceOperationRequirement requirement,
+        IndustryChallenge challenge)
+    {
+        // 1. Platform Superadmin / PlatformAdmin bypass for platform governance
+        if (context.User.IsInRole(PlatformRole.Superadmin) || context.User.IsInRole(PlatformRole.PlatformAdmin))
+        {
+            context.Succeed(requirement);
+            return;
+        }
+
+        var userIdClaim = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        Guid currentUserId = Guid.Empty;
+        bool isAuthenticated = false;
+        if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out var parsedId))
+        {
+            currentUserId = parsedId;
+            isAuthenticated = true;
+        }
+
+        // 2. Read requirement
+        if (requirement.Operation == ResourceOperation.Read)
+        {
+            // Bilateral block check if authenticated
+            if (isAuthenticated)
+            {
+                var isBlocked = await _dbContext.UserBlocks
+                    .AsNoTracking()
+                    .AnyAsync(b => (b.BlockerUserId == challenge.CreatedByUserId && b.BlockedUserId == currentUserId) ||
+                                   (b.BlockerUserId == currentUserId && b.BlockedUserId == challenge.CreatedByUserId));
+                if (isBlocked)
+                {
+                    return;
+                }
+            }
+
+            // Published, OpenForProposals, UnderReview, Closed public challenges are readable
+            if (challenge.Status == ChallengeStatus.Published ||
+                challenge.Status == ChallengeStatus.OpenForProposals ||
+                challenge.Status == ChallengeStatus.UnderReview ||
+                challenge.Status == ChallengeStatus.Awarded ||
+                challenge.Status == ChallengeStatus.Closed)
+            {
+                if (challenge.Visibility == ChallengeVisibility.Public)
+                {
+                    context.Succeed(requirement);
+                    return;
+                }
+
+                if (challenge.Visibility == ChallengeVisibility.AuthenticatedUsersOnly && isAuthenticated)
+                {
+                    context.Succeed(requirement);
+                    return;
+                }
+            }
+
+            // Otherwise, requires active membership in sponsoring organization
+            if (isAuthenticated)
+            {
+                var isMember = await _dbContext.OrganizationMemberships
+                    .AsNoTracking()
+                    .AnyAsync(m => m.OrganizationId == challenge.OrganizationId && m.UserId == currentUserId && m.IsActive);
+
+                if (isMember)
+                {
+                    context.Succeed(requirement);
+                }
+            }
+
+            return;
+        }
+
+        // Mutation operations require authentication
+        if (!isAuthenticated) return;
+
+        // 3. Edit / Update Draft
+        if (requirement.Operation == ResourceOperation.Update)
+        {
+            var membership = await _dbContext.OrganizationMemberships
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.OrganizationId == challenge.OrganizationId && m.UserId == currentUserId && m.IsActive);
+
+            if (membership != null && (membership.Role == OrgMembershipRole.OrganizationAdmin || challenge.CreatedByUserId == currentUserId))
+            {
+                context.Succeed(requirement);
+            }
+            return;
+        }
+
+        // 4. Approve / Publish / Close / Cancel (Corporate Governance)
+        if (requirement.Operation == ResourceOperation.Delete || requirement.Operation == ResourceOperation.Publish || requirement.Operation == ResourceOperation.Archive)
+        {
+            var isOrgAdmin = await _dbContext.OrganizationMemberships
+                .AsNoTracking()
+                .AnyAsync(m => m.OrganizationId == challenge.OrganizationId &&
+                               m.UserId == currentUserId &&
+                               m.Role == OrgMembershipRole.OrganizationAdmin &&
+                               m.IsActive);
+
+            if (isOrgAdmin)
+            {
+                context.Succeed(requirement);
+            }
+        }
+    }
+}
+

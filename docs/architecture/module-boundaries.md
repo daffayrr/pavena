@@ -56,3 +56,4 @@ graph TD
 | **Social Graph** | Mutual connections, one-way follows, user blocks. | **Domain & Database Foundation** |
 | **Research Workspaces** | Research projects, project memberships, invitations, tasks, milestones. | **Domain & Database Foundation** |
 | **Documents & Collaboration**| WYSIWYG & LaTeX documents, collaborator ACL, CRDT snapshot metadata. | **Domain & Database Foundation** |
+| **Industry Challenges (Hilir)**| Sponsored challenges, FSM lifecycle, two-tier NDA gating, eligibility verification. | **Full Implementation (Milestone O)** |

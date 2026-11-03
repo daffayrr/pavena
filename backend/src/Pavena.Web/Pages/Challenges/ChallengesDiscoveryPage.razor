@@ -1,0 +1,371 @@
+@page "/challenges"
+@page "/industry"
+@rendermode InteractiveServer
+
+@using Pavena.Application.Challenges.DTOs
+@using Pavena.Domain.Enums
+@using Pavena.Web.Components.Common
+@using Pavena.Web.Services.Challenges
+@using Pavena.Web.Services.Toast
+
+@inject IChallengeClient ChallengeClient
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Tantangan Riset Industri (Hilir Pathway) — Pavena</PageTitle>
+
+<div class="pv-container" style="max-width: 1200px; padding: 2rem 1rem;">
+    <!-- Hero / Title -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; background: rgba(23, 54, 93, 0.1); color: var(--pv-color-primary);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                </span>
+                <h1 style="font-size: 1.875rem; font-weight: 700; color: var(--pv-color-text); margin: 0;">Tantangan Riset Industri</h1>
+            </div>
+            <p style="color: var(--pv-color-text-muted); font-size: 0.9375rem; margin: 0;">
+                Hilir Pathway: Hubungkan kepakaran ilmiah Anda dengan kebutuhan riil industri global, ajukan proposal solusi, dan dapatkan pendanaan kemitraan.
+            </p>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+            <NavLink href="/industry/challenges" class="pv-btn pv-btn-ghost" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                </svg>
+                Portal Sponsor Industri
+            </NavLink>
+        </div>
+    </div>
+
+    <!-- Faceted Search Bar -->
+    <div class="pv-card" style="padding: 1.25rem; margin-bottom: 2rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; align-items: end;">
+            <!-- Text Search -->
+            <div style="grid-column: span 2;">
+                <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                    Pencarian Kata Kunci / Masalah
+                </label>
+                <div style="position: relative;">
+                    <input type="text"
+                           class="pv-input"
+                           placeholder="Cari drone swarm, genomik, optimasi energi..."
+                           @bind="_searchQuery"
+                           @bind:event="oninput"
+                           @onkeyup="HandleSearchKeyUp"
+                           style="width: 100%; padding-left: 2.25rem;" />
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                         style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--pv-color-text-muted);">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Domain Filter -->
+            <div>
+                <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                    Bidang Penelitian
+                </label>
+                <select class="pv-input" @bind="_selectedDomain" style="width: 100%;">
+                    <option value="">Semua Bidang Riset</option>
+                    <option value="Robotics & Autonomous Systems">Robotika & Otonom</option>
+                    <option value="Bioinformatics">Bioinformatika & Kesehatan</option>
+                    <option value="Computer Science">Ilmu Komputer & AI</option>
+                    <option value="Renewable Energy">Energi Terbarukan</option>
+                    <option value="Materials Science">Material Lanjutan</option>
+                </select>
+            </div>
+
+            <!-- Eligibility Filter -->
+            <div>
+                <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                    Kelayakan Institusi
+                </label>
+                <select class="pv-input" @bind="_selectedEligibility" style="width: 100%;">
+                    <option value="">Semua Kelayakan</option>
+                    <option value="@InstitutionalEligibility.OpenToAll">Terbuka untuk Semua Peneliti</option>
+                    <option value="@InstitutionalEligibility.UniversitiesOnly">Hanya Universitas Terakreditasi</option>
+                    <option value="@InstitutionalEligibility.AccreditedResearchInstitutesOnly">Hanya Lembaga Riset Resmi</option>
+                    <option value="@InstitutionalEligibility.ConsortiumRequired">Konsorsium Industri-Akademisi</option>
+                </select>
+            </div>
+
+            <!-- Max Budget Filter -->
+            <div>
+                <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.375rem;">
+                    Batas Anggaran Maksimal
+                </label>
+                <select class="pv-input" @bind="_selectedMaxBudget" style="width: 100%;">
+                    <option value="">Semua Kisaran Dana</option>
+                    <option value="50000">Hingga $50,000</option>
+                    <option value="100000">Hingga $100,000</option>
+                    <option value="250000">Hingga $250,000</option>
+                    <option value="500000">Hingga $500,000+</option>
+                </select>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="pv-btn pv-btn-primary" @onclick="ExecuteSearch" style="flex: 1;">
+                    Terapkan Filter
+                </button>
+                <button class="pv-btn pv-btn-ghost" @onclick="ResetFilters" title="Reset">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <path d="M3 3v5h5"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results State -->
+    @if (_isLoading)
+    {
+        <div style="text-align: center; padding: 4rem 1rem;">
+            <div class="pv-spinner" style="margin-bottom: 1rem;"></div>
+            <p style="color: var(--pv-color-text-muted);">Memuat tantangan industri...</p>
+        </div>
+    }
+    else if (_challenges == null || _challenges.Count == 0)
+    {
+        <div class="pv-card" style="text-align: center; padding: 4rem 2rem;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--pv-color-text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem;">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-text); margin: 0 0 0.5rem 0;">
+                Tidak Ditemukan Tantangan Riset
+            </h3>
+            <p style="color: var(--pv-color-text-muted); font-size: 0.875rem; margin: 0 0 1.5rem 0;">
+                Coba sesuaikan kata kunci atau bersihkan filter pencarian Anda.
+            </p>
+            <button class="pv-btn pv-btn-ghost" @onclick="ResetFilters">
+                Reset Semua Filter
+            </button>
+        </div>
+    }
+    else
+    {
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <span style="font-size: 0.875rem; color: var(--pv-color-text-muted);">
+                Menampilkan <strong>@_challenges.Count</strong> tantangan aktif
+            </span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr; gap: 1.25rem;">
+            @foreach (var ch in _challenges)
+            {
+                <div class="pv-card" style="padding: 1.5rem; border-left: 4px solid var(--pv-color-primary);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.375rem;">
+                                <span style="font-weight: 600; color: var(--pv-color-primary); font-size: 0.875rem;">
+                                    @ch.OrganizationName
+                                </span>
+                                <span style="color: var(--pv-color-border); font-size: 0.75rem;">•</span>
+                                <span style="color: var(--pv-color-text-muted); font-size: 0.8125rem;">
+                                    Dibuat @ch.CreatedAtUtc.ToString("dd MMM yyyy")
+                                </span>
+                            </div>
+                            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--pv-color-text); margin: 0 0 0.5rem 0; line-height: 1.35;">
+                                <a href="/challenges/@ch.Id" style="color: inherit; text-decoration: none;">
+                                    @ch.Title
+                                </a>
+                            </h2>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            @if (ch.Status == ChallengeStatus.OpenForProposals)
+                            {
+                                <span class="pv-badge pv-badge-success" style="font-weight: 600;">Menerima Proposal</span>
+                            }
+                            else
+                            {
+                                <span class="pv-badge pv-badge-secondary">@ch.Status</span>
+                            }
+
+                            @if (ch.Eligibility == InstitutionalEligibility.OpenToAll)
+                            {
+                                <span class="pv-badge pv-badge-ghost">Semua Peneliti</span>
+                            }
+                            else if (ch.Eligibility == InstitutionalEligibility.UniversitiesOnly)
+                            {
+                                <span class="pv-badge pv-badge-warning">Universitas Resmi</span>
+                            }
+                            else if (ch.Eligibility == InstitutionalEligibility.AccreditedResearchInstitutesOnly)
+                            {
+                                <span class="pv-badge pv-badge-secondary">Lembaga Riset</span>
+                            }
+                            else
+                            {
+                                <span class="pv-badge pv-badge-secondary">Konsorsium</span>
+                            }
+                        </div>
+                    </div>
+
+                    <p style="color: var(--pv-color-text-muted); font-size: 0.9375rem; line-height: 1.5; margin: 0 0 1rem 0;">
+                        @ch.Summary
+                    </p>
+
+                    <!-- Domains -->
+                    @if (ch.PrimaryDomains != null && ch.PrimaryDomains.Count > 0)
+                    {
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem;">
+                            @foreach (var dom in ch.PrimaryDomains)
+                            {
+                                <span class="pv-badge pv-badge-ghost" style="font-size: 0.75rem;">
+                                    # @dom
+                                </span>
+                            }
+                        </div>
+                    }
+
+                    <!-- Bottom Bar: Budget, Deadline, Attachments, Action -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--pv-color-border); padding-top: 1rem; flex-wrap: wrap; gap: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                            <div>
+                                <span style="display: block; font-size: 0.75rem; color: var(--pv-color-text-muted);">Alokasi Pendanaan</span>
+                                <strong style="font-size: 0.9375rem; color: var(--pv-color-text);">
+                                    @FormatBudget(ch.Currency, ch.MinBudget, ch.MaxBudget)
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span style="display: block; font-size: 0.75rem; color: var(--pv-color-text-muted);">Batas Akhir Proposal</span>
+                                <strong style="font-size: 0.9375rem; color: var(--pv-color-text);">
+                                    @ch.SubmissionDeadlineUtc.ToString("dd MMM yyyy")
+                                    <span style="font-size: 0.75rem; font-weight: normal; color: var(--pv-color-secondary);">
+                                        (@GetRemainingDays(ch.SubmissionDeadlineUtc) hari tersisa)
+                                    </span>
+                                </strong>
+                            </div>
+
+                            @if (ch.ConfidentialAttachmentCount > 0)
+                            {
+                                <div style="display: flex; align-items: center; gap: 0.375rem; color: var(--pv-color-warning); font-size: 0.8125rem;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                    </svg>
+                                    <span>@ch.ConfidentialAttachmentCount Lampiran Rahasia (NDA)</span>
+                                </div>
+                            }
+                        </div>
+
+                        <div style="display: flex; gap: 0.5rem;">
+                            <a href="/challenges/@ch.Id" class="pv-btn pv-btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                                Pelajari Detail & NDA
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private List<ChallengeSummaryDto>? _challenges;
+
+    private string? _searchQuery;
+    private string? _selectedDomain;
+    private string? _selectedEligibility;
+    private string? _selectedMaxBudget;
+
+    private int _currentPage = 1;
+    private int _pageSize = 20;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadChallengesAsync();
+    }
+
+    private async Task LoadChallengesAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            InstitutionalEligibility? elig = null;
+            if (!string.IsNullOrEmpty(_selectedEligibility) && Enum.TryParse<InstitutionalEligibility>(_selectedEligibility, out var eVal))
+            {
+                elig = eVal;
+            }
+
+            decimal? maxB = null;
+            if (!string.IsNullOrEmpty(_selectedMaxBudget) && decimal.TryParse(_selectedMaxBudget, out var bVal))
+            {
+                maxB = bVal;
+            }
+
+            _challenges = await ChallengeClient.SearchChallengesAsync(
+                query: _searchQuery,
+                domain: _selectedDomain,
+                status: null,
+                eligibility: elig,
+                maxBudget: maxB,
+                organizationId: null,
+                page: _currentPage,
+                pageSize: _pageSize);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Gagal memuat tantangan industri: " + ex.Message);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ExecuteSearch();
+        }
+    }
+
+    private async Task ExecuteSearch()
+    {
+        _currentPage = 1;
+        await LoadChallengesAsync();
+    }
+
+    private async Task ResetFilters()
+    {
+        _searchQuery = null;
+        _selectedDomain = null;
+        _selectedEligibility = null;
+        _selectedMaxBudget = null;
+        _currentPage = 1;
+        await LoadChallengesAsync();
+    }
+
+    private string FormatBudget(string? currency, decimal? min, decimal? max)
+    {
+        var cur = currency ?? "USD";
+        if (!min.HasValue && !max.HasValue) return "Dinegosiasikan";
+        if (min.HasValue && max.HasValue) return $"{cur} {min.Value:N0} – {max.Value:N0}";
+        if (min.HasValue) return $"Mulai {cur} {min.Value:N0}";
+        return max.HasValue ? $"Hingga {cur} {max.Value:N0}" : "Dinegosiasikan";
+    }
+
+    private int GetRemainingDays(DateTime deadline)
+    {
+        var diff = deadline - DateTime.UtcNow;
+        return Math.Max(0, (int)Math.Ceiling(diff.TotalDays));
+    }
+}

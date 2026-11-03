@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Pavena.Domain.Entities.Challenges;
 using Pavena.Domain.Entities.Documents;
 using Pavena.Domain.Entities.Identity;
 using Pavena.Domain.Entities.Organizations;
@@ -12,6 +14,7 @@ public interface IPavenaDbContext
 {
     DbSet<User> Users { get; }
     DbSet<PlatformRole> PlatformRoles { get; }
+    DbSet<IdentityUserRole<Guid>> UserPlatformRoles { get; }
     DbSet<UserProfile> UserProfiles { get; }
     DbSet<UserEducation> UserEducations { get; }
     DbSet<UserExperience> UserExperiences { get; }
@@ -47,6 +50,14 @@ public interface IPavenaDbContext
     DbSet<CompilationArtifact> CompilationArtifacts { get; }
     DbSet<DocumentComment> DocumentComments { get; }
     DbSet<DocumentReview> DocumentReviews { get; }
+
+    DbSet<IndustryChallenge> IndustryChallenges { get; }
+    DbSet<ChallengeAttachment> ChallengeAttachments { get; }
+    DbSet<ChallengeResearchDomain> ChallengeResearchDomains { get; }
+    DbSet<ChallengeExpertiseRequirement> ChallengeExpertiseRequirements { get; }
+    DbSet<ChallengeApproval> ChallengeApprovals { get; }
+    DbSet<ChallengeActivityLog> ChallengeActivityLogs { get; }
+    DbSet<ChallengeNdaAgreement> ChallengeNdaAgreements { get; }
 
     Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
 
