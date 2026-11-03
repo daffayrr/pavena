@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Pavena.API/Pavena.API.csproj" />
+    <Project Path="src/Pavena.Application/Pavena.Application.csproj" />
+    <Project Path="src/Pavena.Domain/Pavena.Domain.csproj" />
+    <Project Path="src/Pavena.Infrastructure/Pavena.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Pavena.IntegrationTests/Pavena.IntegrationTests.csproj" />
+    <Project Path="tests/Pavena.UnitTests/Pavena.UnitTests.csproj" />
+  </Folder>
+</Solution>
