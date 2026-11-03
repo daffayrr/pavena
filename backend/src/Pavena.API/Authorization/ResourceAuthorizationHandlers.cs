@@ -34,8 +34,10 @@ public class ProjectAuthorizationHandler : AuthorizationHandler<ResourceOperatio
             return;
         }
 
-        // Platform Superadmin / PlatformAdmin bypass for platform moderation
-        if (context.User.IsInRole(PlatformRole.Superadmin) || context.User.IsInRole(PlatformRole.PlatformAdmin))
+        // Platform Superadmin / PlatformAdmin may moderate (non-Read operations) but never
+        // receive implicit Read access to research workspace content.
+        if (requirement.Operation != ResourceOperation.Read &&
+            (context.User.IsInRole(PlatformRole.Superadmin) || context.User.IsInRole(PlatformRole.PlatformAdmin)))
         {
             context.Succeed(requirement);
             return;
@@ -464,8 +466,10 @@ public class ProposalAuthorizationHandler : AuthorizationHandler<ResourceOperati
             return;
         }
 
-        // Platform Superadmin / Platform Admin bypass
-        if (context.User.IsInRole(PlatformRole.Superadmin) || context.User.IsInRole(PlatformRole.PlatformAdmin))
+        // Platform Superadmin / Platform Admin may moderate (non-Read operations) but never
+        // receive implicit Read access to confidential proposals.
+        if (requirement.Operation != ResourceOperation.Read &&
+            (context.User.IsInRole(PlatformRole.Superadmin) || context.User.IsInRole(PlatformRole.PlatformAdmin)))
         {
             context.Succeed(requirement);
             return;

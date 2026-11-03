@@ -20,6 +20,7 @@ using Pavena.Infrastructure.Identity;
 using Pavena.Infrastructure.Persistence;
 using Pavena.Infrastructure.Proposals;
 using Pavena.Infrastructure.Research;
+using Pavena.Infrastructure.Seeding;
 using Pavena.Infrastructure.Social;
 using Pavena.Infrastructure.Storage;
 
@@ -148,6 +149,7 @@ public static class DependencyInjection
         services.AddScoped<IProposalReviewService, ProposalReviewService>();
         services.AddScoped<IProposalConversionService, ProposalConversionService>();
         services.AddScoped<DatabaseSeeder>();
+        services.AddScoped<DemoDataSeeder>();
 
         return services;
     }

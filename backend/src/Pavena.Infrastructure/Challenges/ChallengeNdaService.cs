@@ -163,9 +163,8 @@ public class ChallengeNdaService : IChallengeNdaService
 
         if (challenge == null) return false;
 
-        // Platform admins automatically have clearance
-        if (await IsPlatformAdminAsync(userId, ct)) return true;
-
+        // NOTE: Platform admins intentionally do NOT receive automatic NDA clearance
+        // (platform moderation is not the same as access to confidential content).
         // Sponsor organization members automatically have internal clearance
         var isSponsorMember = await _dbContext.OrganizationMemberships
             .AnyAsync(m => m.OrganizationId == challenge.OrganizationId && m.UserId == userId && m.IsActive, ct);

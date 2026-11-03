@@ -246,7 +246,8 @@ public class ProposalService : IProposalService
         if (proposal == null)
             return null;
 
-        var isPlatformAdmin = await IsPlatformAdminAsync(actorUserId, ct);
+        // Platform admins have NO implicit read access to confidential proposals.
+        var isPlatformAdmin = false;
         var isLeadResearcher = proposal.LeadResearcherId == actorUserId;
         var isTeamMember = proposal.Investigators.Any(i => i.UserId == actorUserId);
         
@@ -295,7 +296,8 @@ public class ProposalService : IProposalService
         Guid actorUserId,
         CancellationToken ct = default)
     {
-        var isPlatformAdmin = await IsPlatformAdminAsync(actorUserId, ct);
+        // Platform admins are scoped like any other user (no implicit access to confidential proposals).
+        var isPlatformAdmin = false;
 
         var query = _dbContext.ResearchProposals
             .Include(p => p.Challenge).ThenInclude(c => c!.Organization)

@@ -13,6 +13,7 @@ using Pavena.Application.Identity.Interfaces;
 using Pavena.Domain.Entities.Identity;
 using Pavena.Infrastructure;
 using Pavena.Infrastructure.Persistence;
+using Pavena.Infrastructure.Seeding;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -120,6 +121,17 @@ using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
     await seeder.SeedAsync();
+}
+
+// 7. Explicit CLI Command: Deterministic Demo Data Seeding
+if (args.Contains("seed-demo") || args.Contains("--seed-demo"))
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var demoSeeder = scope.ServiceProvider.GetRequiredService<DemoDataSeeder>();
+        await demoSeeder.SeedAsync();
+    }
+    return;
 }
 
 // 8. HTTP Request Pipeline
