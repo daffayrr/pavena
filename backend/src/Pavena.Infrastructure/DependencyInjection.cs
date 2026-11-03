@@ -7,10 +7,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Pavena.Application.Common.Interfaces;
+using Pavena.Application.Documents.Interfaces;
 using Pavena.Application.Identity.Interfaces;
 using Pavena.Application.Research.Interfaces;
 using Pavena.Application.Social.Interfaces;
 using Pavena.Domain.Entities.Identity;
+using Pavena.Infrastructure.Documents;
 using Pavena.Infrastructure.Identity;
 using Pavena.Infrastructure.Persistence;
 using Pavena.Infrastructure.Research;
@@ -101,6 +103,19 @@ public static class DependencyInjection
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
                 ClockSkew = TimeSpan.Zero
             };
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    var path = context.HttpContext.Request.Path;
+                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                    {
+                        context.Token = accessToken;
+                    }
+                    return Task.CompletedTask;
+                }
+            };
         });
 
         // Application Service Implementations
@@ -115,6 +130,12 @@ public static class DependencyInjection
         services.AddScoped<IPostService, PostService>();
         services.AddScoped<IFeedService, FeedService>();
         services.AddScoped<IProjectService, ProjectService>();
+        services.AddScoped<IDocumentService, DocumentService>();
+        services.AddScoped<IDocumentFileSystemService, DocumentFileSystemService>();
+        services.AddScoped<IDocumentCollaborationService, DocumentCollaborationService>();
+        services.AddScoped<IDocumentVersioningService, DocumentVersioningService>();
+        services.AddScoped<ILatexCompilerService, LatexCompilerService>();
+        services.AddScoped<IDocumentReviewService, DocumentReviewService>();
         services.AddScoped<DatabaseSeeder>();
 
         return services;

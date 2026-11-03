@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi.Models;
 using Pavena.API.Authorization;
 using Pavena.API.Health;
+using Pavena.API.Hubs;
 using Pavena.API.Middleware;
 using Pavena.API.Services;
 using Pavena.Application;
@@ -71,8 +72,9 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-// 7. Controllers & OpenAPI / Swagger
+// 7. Controllers & SignalR & OpenAPI / Swagger
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -146,6 +148,7 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions
 });
 
 app.MapControllers();
+app.MapHub<CollaborationHub>("/hubs/collaboration");
 
 app.Run();
 

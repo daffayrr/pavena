@@ -1,0 +1,310 @@
+@page "/documents"
+@attribute [Authorize]
+@inject IDocumentClient DocumentClient
+@inject NavigationManager Navigation
+@inject IToastService ToastService
+
+<PageTitle>Research Documents — Pavena Research Studio</PageTitle>
+
+<div class="pv-container" style="padding-top: 1.5rem; padding-bottom: 3rem;">
+    <!-- Header Banner -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <div>
+            <h1 style="font-size: 1.6rem; font-weight: 700; color: var(--pv-color-text); margin: 0 0 0.25rem 0;">
+                Research Studio Documents
+            </h1>
+            <p style="font-size: 0.9rem; color: var(--pv-color-text-muted); margin: 0;">
+                Author manuscripts, proposals, and academic publications with real-time multi-user LaTeX compilation.
+            </p>
+        </div>
+        <div>
+            <button class="pv-btn pv-btn-primary" @onclick="OpenCreateModal">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                New Research Document
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters & Search Bar -->
+    <div class="pv-card" style="padding: 1rem; margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 240px; position: relative;">
+            <input type="text" class="pv-input" placeholder="Search documents by title or topic..."
+                   @bind="_searchQuery" @bind:event="oninput" style="width: 100%;" />
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <select class="pv-input" @bind="_selectedType" style="height: 38px;">
+                <option value="">All Document Types</option>
+                <option value="Manuscript">Manuscript</option>
+                <option value="Proposal">Research Proposal</option>
+                <option value="Report">Technical Report</option>
+                <option value="Notes">Research Notes</option>
+            </select>
+
+            <select class="pv-input" @bind="_selectedMode" style="height: 38px;">
+                <option value="">All Modes</option>
+                <option value="Latex">LaTeX</option>
+                <option value="Wysiwyg">Rich Text (WYSIWYG)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Documents List Grid -->
+    @if (_isLoading)
+    {
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem;">
+            @for (int i = 0; i < 6; i++)
+            {
+                <div class="pv-card" style="padding: 1.25rem; height: 180px; animation: pv-skeleton-shine 1.5s infinite;"></div>
+            }
+        </div>
+    }
+    else if (FilteredDocuments.Count == 0)
+    {
+        <div class="pv-card" style="padding: 3rem; text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.5;">📄</div>
+            <h3 style="font-size: 1.15rem; font-weight: 600; color: var(--pv-color-text); margin-bottom: 0.5rem;">
+                No research documents found
+            </h3>
+            <p style="font-size: 0.875rem; color: var(--pv-color-text-muted); max-width: 440px; margin: 0 auto 1.5rem auto;">
+                Create your first LaTeX manuscript to collaborate in real-time, compile isolated PDFs, and produce publishable research.
+            </p>
+            <button class="pv-btn pv-btn-primary" @onclick="OpenCreateModal">
+                Create First Document
+            </button>
+        </div>
+    }
+    else
+    {
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.25rem;">
+            @foreach (var doc in FilteredDocuments)
+            {
+                <div class="pv-card" style="padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s ease, box-shadow 0.15s ease;">
+                    <div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span class="pv-badge pv-badge-neutral" style="font-size: 0.75rem;">
+                                @(doc.Mode == EditorMode.Latex ? "LaTeX" : "WYSIWYG")
+                            </span>
+                            <span class="pv-badge" style="font-size: 0.72rem; background: rgba(24, 124, 120, 0.1); color: var(--pv-color-secondary);">
+                                @doc.DocumentType
+                            </span>
+                        </div>
+
+                        <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--pv-color-text); margin: 0 0 0.4rem 0; cursor: pointer;"
+                            @onclick="() => OpenStudio(doc.Id)">
+                            @doc.Title
+                        </h3>
+
+                        @if (!string.IsNullOrWhiteSpace(doc.Description))
+                        {
+                            <p style="font-size: 0.85rem; color: var(--pv-color-text-muted); margin: 0 0 0.85rem 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                @doc.Description
+                            </p>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(doc.ProjectTitle))
+                        {
+                            <div style="font-size: 0.78rem; color: var(--pv-color-text-muted); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 4px;">
+                                <span>📁 Project:</span>
+                                <span style="font-weight: 500; color: var(--pv-color-primary);">@doc.ProjectTitle</span>
+                            </div>
+                        }
+                    </div>
+
+                    <div style="border-top: 1px solid var(--pv-color-border); padding-top: 0.75rem; margin-top: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+                        <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">
+                            @if (doc.LastCompilationStatus.HasValue)
+                            {
+                                <span style="display: inline-flex; align-items: center; gap: 4px;">
+                                    <span style="width: 8px; height: 8px; border-radius: 50%; background: @(doc.LastCompilationStatus == CompilationStatus.Succeeded ? "#10b981" : "#ef4444");"></span>
+                                    @(doc.LastCompilationStatus == CompilationStatus.Succeeded ? "PDF Ready" : "Build Error")
+                                </span>
+                            }
+                            else
+                            {
+                                <span>@doc.FileCount files • @doc.CollaboratorCount collaborators</span>
+                            }
+                        </div>
+
+                        <button class="pv-btn pv-btn-sm pv-btn-primary" @onclick="() => OpenStudio(doc.Id)">
+                            Open Studio →
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Create Document Modal -->
+@if (_showCreateModal)
+{
+    <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+        <div class="pv-card" style="width: 100%; max-width: 520px; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--pv-color-text); margin: 0;">
+                    Create Research Document
+                </h3>
+                <button type="button" @onclick="CloseCreateModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--pv-color-text-muted);">&times;</button>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.35rem;">Document Title *</label>
+                    <input type="text" class="pv-input" style="width: 100%;" placeholder="e.g. Distributed Neural Representations in Graph Learning"
+                           @bind="_createTitle" />
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.35rem;">Document Type</label>
+                    <select class="pv-input" style="width: 100%;" @bind="_createDocumentType">
+                        <option value="Manuscript">Manuscript / Paper</option>
+                        <option value="Proposal">Research Proposal</option>
+                        <option value="Report">Technical Report</option>
+                        <option value="Notes">Research Notes</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.35rem;">Authoring Mode</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <div class="pv-card" style="padding: 0.75rem; cursor: pointer; border: 2px solid @(_createMode == EditorMode.Latex ? "var(--pv-color-primary)" : "var(--pv-color-border)");"
+                             @onclick="() => _createMode = EditorMode.Latex">
+                            <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem;">LaTeX Studio</div>
+                            <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">Multi-file, math formulas, automated PDF compilation.</div>
+                        </div>
+                        <div class="pv-card" style="padding: 0.75rem; cursor: pointer; border: 2px solid @(_createMode == EditorMode.Wysiwyg ? "var(--pv-color-primary)" : "var(--pv-color-border)");"
+                             @onclick="() => _createMode = EditorMode.Wysiwyg">
+                            <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem;">WYSIWYG</div>
+                            <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">Rich visual text editing for notes and reviews.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.35rem;">Description</label>
+                    <textarea class="pv-input" style="width: 100%; height: 75px; resize: none;" placeholder="Brief abstract or summary of this document..."
+                              @bind="_createDescription"></textarea>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+                <button type="button" class="pv-btn pv-btn-ghost" @onclick="CloseCreateModal">Cancel</button>
+                <button type="button" class="pv-btn pv-btn-primary" @onclick="HandleCreateDocument" disabled="@_isSubmitting">
+                    @(_isSubmitting ? "Creating..." : "Create & Launch Studio")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private bool _showCreateModal = false;
+    private bool _isSubmitting = false;
+
+    private List<DocumentSummaryDto> _documents = new();
+    private string _searchQuery = "";
+    private string _selectedType = "";
+    private string _selectedMode = "";
+
+    // Create Modal state
+    private string _createTitle = "";
+    private string _createDescription = "";
+    private string _createDocumentType = "Manuscript";
+    private EditorMode _createMode = EditorMode.Latex;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDocumentsAsync();
+    }
+
+    private async Task LoadDocumentsAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var result = await DocumentClient.GetUserDocumentsAsync();
+            _documents = result.ToList();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Failed to load documents: " + ex.Message);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private List<DocumentSummaryDto> FilteredDocuments => _documents
+        .Where(d => string.IsNullOrWhiteSpace(_searchQuery) ||
+                    d.Title.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    (d.Description != null && d.Description.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)))
+        .Where(d => string.IsNullOrWhiteSpace(_selectedType) || d.DocumentType.Equals(_selectedType, StringComparison.OrdinalIgnoreCase))
+        .Where(d => string.IsNullOrWhiteSpace(_selectedMode) || d.Mode.ToString().Equals(_selectedMode, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    private void OpenCreateModal()
+    {
+        _createTitle = "";
+        _createDescription = "";
+        _createDocumentType = "Manuscript";
+        _createMode = EditorMode.Latex;
+        _showCreateModal = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        _showCreateModal = false;
+    }
+
+    private async Task HandleCreateDocument()
+    {
+        if (string.IsNullOrWhiteSpace(_createTitle))
+        {
+            ToastService.ShowError("Please enter a document title.");
+            return;
+        }
+
+        _isSubmitting = true;
+        try
+        {
+            var req = new CreateDocumentRequest(
+                _createTitle,
+                _createDescription,
+                _createDocumentType,
+                _createMode,
+                null,
+                DocumentVisibility.Private
+            );
+
+            var created = await DocumentClient.CreateDocumentAsync(req);
+            if (created != null)
+            {
+                ToastService.ShowSuccess("Document created successfully.");
+                CloseCreateModal();
+                Navigation.NavigateTo($"/documents/{created.Id}/editor");
+            }
+            else
+            {
+                ToastService.ShowError("Failed to create document.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void OpenStudio(Guid documentId)
+    {
+        Navigation.NavigateTo($"/documents/{documentId}/editor");
+    }
+}

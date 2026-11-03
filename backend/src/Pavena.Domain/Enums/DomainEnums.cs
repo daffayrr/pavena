@@ -209,3 +209,50 @@ public enum PostCategory
     ConferenceAndEvent = 6,
     GeneralAcademic = 7
 }
+
+public enum CompilationStatus
+{
+    Queued = 1,
+    Running = 2,
+    Succeeded = 3,
+    Failed = 4,
+    TimedOut = 5
+}
+
+public enum CompilationEngine
+{
+    PdfLatex = 1,
+    XeLatex = 2,
+    LuaLatex = 3
+}
+
+public enum CompilationArtifactType
+{
+    Pdf = 1,
+    Log = 2,
+    Synctex = 3,
+    Aux = 4
+}
+
+public enum DocumentVersionSource
+{
+    ManualSnapshot = 1,
+    AutoSave = 2,
+    CompilationSuccess = 3,
+    Release = 4
+}
+
+public enum ReviewStatus
+{
+    Pending = 1,
+    Approved = 2,
+    ChangesRequested = 3,
+    Rejected = 4
+}
+
+public enum CommentStatus
+{
+    Active = 1,
+    Resolved = 2
+}
+

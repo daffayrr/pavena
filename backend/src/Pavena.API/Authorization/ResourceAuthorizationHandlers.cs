@@ -141,26 +141,30 @@ public class DocumentAuthorizationHandler : AuthorizationHandler<ResourceOperati
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.DocumentId == document.Id && c.UserId == userId);
 
+        var isCollaboratorActive = collaborator != null && collaborator.IsActive();
+
         if (requirement.Operation == ResourceOperation.Read)
         {
-            if (document.Visibility == DocumentVisibility.Public || collaborator != null)
+            if (document.Visibility == DocumentVisibility.Public || isCollaboratorActive)
             {
                 context.Succeed(requirement);
                 return;
             }
         }
 
-        if (collaborator != null)
+        if (isCollaboratorActive)
         {
             if (requirement.Operation == ResourceOperation.Update &&
-                (collaborator.Role == DocumentPermissionRole.Owner || collaborator.Role == DocumentPermissionRole.Editor))
+                (collaborator!.Role == DocumentPermissionRole.Owner || collaborator.Role == DocumentPermissionRole.Editor))
             {
                 context.Succeed(requirement);
                 return;
             }
 
-            if (requirement.Operation == ResourceOperation.ManageCollaborators &&
-                collaborator.Role == DocumentPermissionRole.Owner)
+            if ((requirement.Operation == ResourceOperation.ManageCollaborators ||
+                 requirement.Operation == ResourceOperation.Delete ||
+                 requirement.Operation == ResourceOperation.Archive) &&
+                collaborator!.Role == DocumentPermissionRole.Owner)
             {
                 context.Succeed(requirement);
                 return;

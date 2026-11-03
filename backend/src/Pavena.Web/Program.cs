@@ -1,4 +1,5 @@
 using Pavena.Web.Services.Auth;
+using Pavena.Web.Services.Documents;
 using Pavena.Web.Services.Profile;
 using Pavena.Web.Services.Projects;
 using Pavena.Web.Services.Theme;
@@ -22,6 +23,10 @@ builder.Services.AddHttpClient<IAcademicProfileClient, AcademicProfileClient>(cl
     client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
 });
 builder.Services.AddHttpClient<IProjectClient, ProjectClient>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
+});
+builder.Services.AddHttpClient<IDocumentClient, DocumentClient>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
 });

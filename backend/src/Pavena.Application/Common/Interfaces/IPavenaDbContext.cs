@@ -39,6 +39,14 @@ public interface IPavenaDbContext
 
     DbSet<Document> Documents { get; }
     DbSet<DocumentCollaborator> DocumentCollaborators { get; }
+    DbSet<DocumentFile> DocumentFiles { get; }
+    DbSet<DocumentCrdtUpdate> DocumentCrdtUpdates { get; }
+    DbSet<DocumentSnapshot> DocumentSnapshots { get; }
+    DbSet<DocumentVersion> DocumentVersions { get; }
+    DbSet<CompilationJob> CompilationJobs { get; }
+    DbSet<CompilationArtifact> CompilationArtifacts { get; }
+    DbSet<DocumentComment> DocumentComments { get; }
+    DbSet<DocumentReview> DocumentReviews { get; }
 
     Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
 

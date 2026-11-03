@@ -1,0 +1,830 @@
+@page "/documents/{id:guid}/editor"
+@page "/documents/{id:guid}"
+@attribute [Authorize]
+@inject IDocumentClient DocumentClient
+@inject NavigationManager Navigation
+@inject IToastService ToastService
+@inject IJSRuntime JSRuntime
+@inject IScholarSessionService SessionService
+@implements IAsyncDisposable
+
+<PageTitle>@(_document?.Title ?? "Loading...") — Pavena Research Studio</PageTitle>
+
+@if (_isLoading)
+{
+    <div style="display: flex; height: calc(100vh - 64px); align-items: center; justify-content: center; background: var(--pv-color-bg);">
+        <div style="text-align: center;">
+            <div class="pv-spinner" style="margin-bottom: 1rem;"></div>
+            <div style="font-weight: 600; color: var(--pv-color-text);">Loading Research Studio...</div>
+            <div style="font-size: 0.8125rem; color: var(--pv-color-text-muted);">Fetching document workspace & assets</div>
+        </div>
+    </div>
+}
+else if (_document == null)
+{
+    <div class="pv-container" style="padding: 3rem; text-align: center;">
+        <h2 style="font-size: 1.5rem; color: var(--pv-color-text); margin-bottom: 0.5rem;">Document Not Found</h2>
+        <p style="color: var(--pv-color-text-muted); margin-bottom: 1.5rem;">The requested research document does not exist or you do not have permission to view it.</p>
+        <button class="pv-btn pv-btn-primary" @onclick='() => Navigation.NavigateTo("/documents")'>Back to Documents</button>
+    </div>
+}
+else
+{
+    <div class="pv-studio-container">
+        <!-- Studio Top Header -->
+        <header class="pv-studio-header">
+            <div class="pv-studio-title-area">
+                <button class="pv-btn pv-btn-ghost pv-btn-sm" @onclick='() => Navigation.NavigateTo("/documents")' title="Back to Documents">
+                    ←
+                </button>
+                <div style="min-width: 0;">
+                    <h2 class="pv-studio-title">@_document.Title</h2>
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--pv-color-text-muted);">
+                        <span class="pv-badge pv-badge-neutral" style="font-size: 0.7rem; padding: 2px 6px;">@_document.DocumentType</span>
+                        <span class="pv-badge" style="font-size: 0.7rem; padding: 2px 6px; background: rgba(23, 54, 93, 0.1); color: var(--pv-color-primary);">@_document.UserRole</span>
+                        @if (!string.IsNullOrWhiteSpace(_document.ProjectTitle))
+                        {
+                            <span>• @_document.ProjectTitle</span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Presence Avatars -->
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="pv-studio-presence" title="Active Collaborators">
+                    <div class="pv-studio-presence-avatar pv-studio-presence-ring" title="You (@SessionService.CurrentDisplayName)">
+                        @GetInitials(SessionService.CurrentDisplayName ?? "Me")
+                    </div>
+                    @foreach (var activeUser in _activeCollaborators.Take(4))
+                    {
+                        <div class="pv-studio-presence-avatar" title="@activeUser.Value">
+                            @GetInitials(activeUser.Value)
+                        </div>
+                    }
+                </div>
+
+                <div class="pv-studio-actions">
+                    <button class="pv-btn pv-btn-sm pv-btn-ghost" @onclick="() => _showCollaboratorsModal = true" title="Manage Collaborators">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        Share
+                    </button>
+
+                    <button class="pv-btn pv-btn-sm pv-btn-ghost" @onclick='() => _sidebarTab = "versions"' title="Document Versions">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+                        History
+                    </button>
+
+                    <!-- PDF Compilation Action -->
+                    <button class="pv-btn pv-btn-sm pv-btn-primary" @onclick="HandleCompilePdf" disabled="@_isCompiling" style="background: var(--pv-color-secondary); border-color: var(--pv-color-secondary);">
+                        @if (_isCompiling)
+                        {
+                            <span class="pv-spinner-sm" style="margin-right: 6px;"></span>
+                            <span>Compiling...</span>
+                        }
+                        else
+                        {
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            <span>Compile PDF</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Split Workspace -->
+        <div class="pv-studio-workspace">
+            <!-- Left Panel: Sidebar (Files / Versions / Comments / Reviews) -->
+            <aside class="pv-studio-sidebar">
+                <div style="display: flex; border-bottom: 1px solid var(--pv-color-border); background: var(--pv-color-bg);">
+                    <button class="pv-btn pv-btn-ghost pv-btn-sm" style="flex: 1; border-radius: 0; font-size: 0.78rem; font-weight: @(_sidebarTab == "files" ? "600" : "400"); border-bottom: 2px solid @(_sidebarTab == "files" ? "var(--pv-color-primary)" : "transparent");"
+                            @onclick='() => _sidebarTab = "files"'>
+                        Files
+                    </button>
+                    <button class="pv-btn pv-btn-ghost pv-btn-sm" style="flex: 1; border-radius: 0; font-size: 0.78rem; font-weight: @(_sidebarTab == "versions" ? "600" : "400"); border-bottom: 2px solid @(_sidebarTab == "versions" ? "var(--pv-color-primary)" : "transparent");"
+                            @onclick='() => _sidebarTab = "versions"'>
+                        History
+                    </button>
+                    <button class="pv-btn pv-btn-ghost pv-btn-sm" style="flex: 1; border-radius: 0; font-size: 0.78rem; font-weight: @(_sidebarTab == "comments" ? "600" : "400"); border-bottom: 2px solid @(_sidebarTab == "comments" ? "var(--pv-color-primary)" : "transparent");"
+                            @onclick='() => _sidebarTab = "comments"'>
+                        Review
+                    </button>
+                </div>
+
+                @if (_sidebarTab == "files")
+                {
+                    <div class="pv-studio-sidebar-header">
+                        <span>Project Files</span>
+                        <div style="display: flex; gap: 4px;">
+                            <button class="pv-btn pv-btn-ghost pv-btn-sm" style="padding: 2px 6px; height: 24px;" @onclick="() => _showNewFileModal = true" title="New File">+</button>
+                        </div>
+                    </div>
+
+                    <div class="pv-studio-filetree">
+                        @foreach (var file in _document.Files)
+                        {
+                            <div class="pv-studio-file-item @(file.Id == _activeFileId ? "is-active" : "")"
+                                 @onclick="() => SelectFileAsync(file.Id)">
+                                <div style="display: flex; align-items: center; min-width: 0;">
+                                    <span class="pv-studio-file-icon">@(file.IsBinary ? "🖼️" : file.FileExtension == ".bib" ? "📚" : "📄")</span>
+                                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@file.FileName</span>
+                                    @if (file.IsMain)
+                                    {
+                                        <span class="pv-badge" style="font-size: 0.65rem; margin-left: 6px; padding: 1px 4px; background: rgba(24, 124, 120, 0.15); color: var(--pv-color-secondary);">MAIN</span>
+                                    }
+                                </div>
+
+                                <div style="display: flex; gap: 4px; opacity: 0.7;">
+                                    @if (!file.IsMain && !file.IsBinary)
+                                    {
+                                        <button class="pv-btn pv-btn-ghost pv-btn-sm" style="padding: 1px 4px; height: 20px; font-size: 0.7rem;" @onclick:stopPropagation="true" @onclick="() => SetAsMainFileAsync(file.Id)" title="Set as Main entry point">★</button>
+                                    }
+                                    @if (_document.Files.Count > 1)
+                                    {
+                                        <button class="pv-btn pv-btn-ghost pv-btn-sm" style="padding: 1px 4px; height: 20px; font-size: 0.7rem; color: #ef4444;" @onclick:stopPropagation="true" @onclick="() => DeleteFileAsync(file.Id)" title="Delete File">&times;</button>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div style="padding: 0.75rem; border-top: 1px solid var(--pv-color-border); display: flex; flex-direction: column; gap: 0.5rem;">
+                        <button class="pv-btn pv-btn-sm pv-btn-ghost" style="width: 100%; justify-content: flex-start;" @onclick="() => _showNewFileModal = true">
+                            + New Source File (.tex, .bib)
+                        </button>
+                    </div>
+                }
+                else if (_sidebarTab == "versions")
+                {
+                    <div class="pv-studio-sidebar-header">
+                        <span>Version History</span>
+                        <button class="pv-btn pv-btn-ghost pv-btn-sm" style="padding: 2px 6px; height: 24px;" @onclick="() => _showNewVersionModal = true" title="Create Snapshot">+</button>
+                    </div>
+
+                    <div style="flex: 1; overflow-y: auto; padding: 0.75rem;">
+                        @if (_versions.Count == 0)
+                        {
+                            <div style="text-align: center; color: var(--pv-color-text-muted); font-size: 0.8125rem; padding: 2rem 0;">
+                                No snapshots created yet.
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var v in _versions)
+                            {
+                                <div class="pv-card" style="padding: 0.75rem; margin-bottom: 0.75rem; font-size: 0.8125rem;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                        <span style="font-weight: 700; color: var(--pv-color-primary);">v@v.VersionNumber</span>
+                                        <span style="font-size: 0.72rem; color: var(--pv-color-text-muted);">@v.CreatedAtUtc.ToLocalTime().ToString("MMM dd, HH:mm")</span>
+                                    </div>
+                                    <div style="font-weight: 600; margin-bottom: 0.25rem;">@v.Title</div>
+                                    <div style="font-size: 0.75rem; color: var(--pv-color-text-muted); margin-bottom: 0.5rem;">by @v.CreatedByUserName</div>
+                                    @if (_document.UserRole == "Owner")
+                                    {
+                                        <button class="pv-btn pv-btn-sm pv-btn-ghost" style="font-size: 0.75rem; padding: 2px 6px; width: 100%;"
+                                                @onclick="() => RestoreVersionAsync(v.Id)">
+                                            Restore Snapshot
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+                else if (_sidebarTab == "comments")
+                {
+                    <div class="pv-studio-sidebar-header">
+                        <span>Review & Discussion</span>
+                        <button class="pv-btn pv-btn-ghost pv-btn-sm" style="padding: 2px 6px; height: 24px;" @onclick="() => _showNewReviewModal = true" title="Request Formal Review">Request Review</button>
+                    </div>
+
+                    <div style="flex: 1; overflow-y: auto; padding: 0.75rem;">
+                        <!-- Inline comment composer -->
+                        <div class="pv-card" style="padding: 0.75rem; margin-bottom: 1rem;">
+                            <textarea class="pv-input" style="width: 100%; height: 60px; font-size: 0.8125rem; resize: none; margin-bottom: 0.5rem;"
+                                      placeholder="Add research review comment..." @bind="_newCommentText"></textarea>
+                            <button class="pv-btn pv-btn-sm pv-btn-primary" style="width: 100%;" @onclick="HandleAddComment" disabled="@string.IsNullOrWhiteSpace(_newCommentText)">
+                                Post Comment
+                            </button>
+                        </div>
+
+                        @if (_comments.Count == 0)
+                        {
+                            <div style="text-align: center; color: var(--pv-color-text-muted); font-size: 0.8125rem; padding: 1.5rem 0;">
+                                No comments or annotations yet.
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var c in _comments)
+                            {
+                                <div class="pv-card" style="padding: 0.75rem; margin-bottom: 0.75rem; font-size: 0.8125rem; border-left: 3px solid @(c.Status == CommentStatus.Resolved ? "#10b981" : "var(--pv-color-secondary)");">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                                        <span style="font-weight: 600;">@c.AuthorUserName</span>
+                                        <span style="font-size: 0.7rem; color: var(--pv-color-text-muted);">@c.CreatedAtUtc.ToLocalTime().ToString("MMM dd, HH:mm")</span>
+                                    </div>
+                                    <div style="margin-bottom: 0.5rem; color: var(--pv-color-text);">@c.Content</div>
+                                    <div style="display: flex; justify-content: flex-end;">
+                                        @if (c.Status == CommentStatus.Active)
+                                        {
+                                            <button class="pv-btn pv-btn-sm pv-btn-ghost" style="font-size: 0.72rem; padding: 2px 6px;" @onclick="() => ResolveCommentAsync(c.Id)">
+                                                ✓ Resolve
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span style="font-size: 0.72rem; color: #10b981;">✓ Resolved</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+            </aside>
+
+            <!-- Center Panel: Editor -->
+            <section class="pv-studio-editor-panel">
+                <!-- Open Files Tabs Bar -->
+                <div class="pv-studio-tabs-bar">
+                    @foreach (var f in _document.Files.Where(f => !f.IsBinary))
+                    {
+                        <div class="pv-studio-tab @(f.Id == _activeFileId ? "is-active" : "")"
+                             @onclick="() => SelectFileAsync(f.Id)">
+                            <span>@f.FileName</span>
+                            @if (_unsavedChanges.Contains(f.Id))
+                            {
+                                <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--pv-color-secondary);"></span>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- Monaco Editor Mounting Container -->
+                <div id="studio-monaco-container" class="pv-studio-monaco-wrapper"></div>
+
+                <!-- Status Bar -->
+                <footer class="pv-studio-statusbar">
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <span>Ln @_currentLine, Col @_currentCol</span>
+                        <span>UTF-8</span>
+                        <span>@(_activeFile?.FileExtension?.ToUpperInvariant() ?? "TEX")</span>
+                    </div>
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <span>@(_isSyncing ? "Syncing..." : "● Connected to Real-time Mesh")</span>
+                    </div>
+                </footer>
+            </section>
+
+            <!-- Right Panel: PDF Viewer & Compiler Output -->
+            <section class="pv-studio-pdf-panel">
+                <div class="pv-studio-pdf-toolbar">
+                    <div style="display: flex; gap: 4px;">
+                        <button class="pv-btn pv-btn-sm @(_pdfViewTab == "pdf" ? "pv-btn-primary" : "pv-btn-ghost")"
+                                @onclick='() => _pdfViewTab = "pdf"'>
+                            PDF Preview
+                        </button>
+                        <button class="pv-btn pv-btn-sm @(_pdfViewTab == "log" ? "pv-btn-primary" : "pv-btn-ghost")"
+                                @onclick='() => _pdfViewTab = "log"'>
+                            Logs @_compilationLogCountBadge
+                        </button>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_compiledPdfUrl))
+                    {
+                        <div style="display: flex; gap: 4px;">
+                            <a href="@_compiledPdfUrl" target="_blank" class="pv-btn pv-btn-sm pv-btn-ghost" title="Open in new window">
+                                ↗ Open
+                            </a>
+                            <a href="@_compiledPdfUrl" download="document.pdf" class="pv-btn pv-btn-sm pv-btn-ghost" title="Download PDF">
+                                ↓ Download
+                            </a>
+                        </div>
+                    }
+                </div>
+
+                @if (_pdfViewTab == "pdf")
+                {
+                    <div class="pv-studio-pdf-content">
+                        @if (!string.IsNullOrWhiteSpace(_compiledPdfUrl))
+                        {
+                            <iframe src="@_compiledPdfUrl" class="pv-studio-pdf-frame"></iframe>
+                        }
+                        else
+                        {
+                            <div style="text-align: center; color: #fff; padding: 2rem;">
+                                <div style="font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.7;">📑</div>
+                                <div style="font-weight: 600; font-size: 1rem; margin-bottom: 0.5rem;">No PDF Generated Yet</div>
+                                <div style="font-size: 0.8125rem; opacity: 0.8; max-width: 280px; margin: 0 auto 1.25rem auto;">
+                                    Click Compile PDF above to execute the isolated LaTeX build pipeline.
+                                </div>
+                                <button class="pv-btn pv-btn-sm pv-btn-primary" @onclick="HandleCompilePdf" disabled="@_isCompiling">
+                                    @(_isCompiling ? "Compiling..." : "Compile Document Now")
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="pv-studio-log-console">
+                        @if (string.IsNullOrWhiteSpace(_compilerLogs))
+                        {
+                            <span style="opacity: 0.5;">No compiler logs recorded. Trigger compilation to view diagnostics.</span>
+                        }
+                        else
+                        {
+                            @_compilerLogs
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+    </div>
+}
+
+<!-- New File Modal -->
+@if (_showNewFileModal)
+{
+    <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+        <div class="pv-card" style="width: 100%; max-width: 440px; padding: 1.5rem;">
+            <h3 style="margin-top: 0; font-size: 1.15rem; font-weight: 700;">Add Document File</h3>
+            <div style="margin: 1rem 0;">
+                <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.35rem;">File Path / Name *</label>
+                <input type="text" class="pv-input" style="width: 100%;" placeholder="e.g. sections/methodology.tex or references.bib" @bind="_newFilePath" />
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button class="pv-btn pv-btn-ghost pv-btn-sm" @onclick="() => _showNewFileModal = false">Cancel</button>
+                <button class="pv-btn pv-btn-primary pv-btn-sm" @onclick="HandleCreateFileAsync" disabled="@string.IsNullOrWhiteSpace(_newFilePath)">Create File</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- New Version Modal -->
+@if (_showNewVersionModal)
+{
+    <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+        <div class="pv-card" style="width: 100%; max-width: 440px; padding: 1.5rem;">
+            <h3 style="margin-top: 0; font-size: 1.15rem; font-weight: 700;">Create Snapshot Version</h3>
+            <div style="margin: 1rem 0;">
+                <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.35rem;">Version Title *</label>
+                <input type="text" class="pv-input" style="width: 100%;" placeholder="e.g. Pre-submission draft to IEEE" @bind="_newVersionTitle" />
+            </div>
+            <div style="margin: 1rem 0;">
+                <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.35rem;">Description / Changelog</label>
+                <textarea class="pv-input" style="width: 100%; height: 60px; resize: none;" placeholder="Summary of changes in this version..." @bind="_newVersionDescription"></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button class="pv-btn pv-btn-ghost pv-btn-sm" @onclick="() => _showNewVersionModal = false">Cancel</button>
+                <button class="pv-btn pv-btn-primary pv-btn-sm" @onclick="HandleCreateVersionAsync" disabled="@string.IsNullOrWhiteSpace(_newVersionTitle)">Save Snapshot</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Collaborators Modal -->
+@if (_showCollaboratorsModal && _document != null)
+{
+    <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+        <div class="pv-card" style="width: 100%; max-width: 500px; padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Document Collaborators</h3>
+                <button class="pv-btn pv-btn-ghost pv-btn-sm" @onclick="() => _showCollaboratorsModal = false">&times;</button>
+            </div>
+
+            <div style="max-height: 240px; overflow-y: auto; margin-bottom: 1.25rem;">
+                @foreach (var c in _document.Collaborators)
+                {
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--pv-color-border);">
+                        <div>
+                            <div style="font-weight: 600; font-size: 0.875rem;">@c.UserFullName</div>
+                            <div style="font-size: 0.75rem; color: var(--pv-color-text-muted);">@c.UserEmail</div>
+                        </div>
+                        <span class="pv-badge pv-badge-neutral" style="font-size: 0.75rem;">@c.Role</span>
+                    </div>
+                }
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="pv-btn pv-btn-primary pv-btn-sm" @onclick="() => _showCollaboratorsModal = false">Close</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Review Modal -->
+@if (_showNewReviewModal && _document != null)
+{
+    <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+        <div class="pv-card" style="width: 100%; max-width: 440px; padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Request Peer Review</h3>
+                <button class="pv-btn pv-btn-ghost pv-btn-sm" @onclick="() => _showNewReviewModal = false">&times;</button>
+            </div>
+            <p style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin-bottom: 1rem;">
+                Select a collaborator to review this document or snapshot.
+            </p>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.35rem;">Reviewer</label>
+                <select class="pv-input" style="width: 100%;" @bind="_selectedReviewerUserId">
+                    @foreach (var c in _document.Collaborators.Where(c => c.CanReview))
+                    {
+                        <option value="@c.UserId">@c.UserFullName (@c.Role)</option>
+                    }
+                </select>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button class="pv-btn pv-btn-ghost pv-btn-sm" @onclick="() => _showNewReviewModal = false">Cancel</button>
+                <button class="pv-btn pv-btn-primary pv-btn-sm" @onclick="HandleRequestReviewAsync">Send Request</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isCompiling = false;
+    private bool _isSyncing = false;
+    private DocumentDetailDto? _document;
+
+    private Guid _activeFileId;
+    private DocumentFileDto? _activeFile => _document?.Files.FirstOrDefault(f => f.Id == _activeFileId);
+    private HashSet<Guid> _unsavedChanges = new();
+
+    private string _sidebarTab = "files";
+    private string _pdfViewTab = "pdf";
+    private string? _compiledPdfUrl;
+    private string _compilerLogs = "";
+    private string _compilationLogCountBadge => !string.IsNullOrWhiteSpace(_compilerLogs) ? "•" : "";
+
+    private int _currentLine = 1;
+    private int _currentCol = 1;
+
+    // Sub-data collections
+    private List<DocumentVersionDto> _versions = new();
+    private List<DocumentCommentDto> _comments = new();
+    private Dictionary<string, string> _activeCollaborators = new();
+
+    // Modals
+    private bool _showNewFileModal = false;
+    private string _newFilePath = "";
+    private bool _showNewVersionModal = false;
+    private string _newVersionTitle = "";
+    private string _newVersionDescription = "";
+    private bool _showNewReviewModal = false;
+    private Guid _selectedReviewerUserId;
+    private bool _showCollaboratorsModal = false;
+    private string _newCommentText = "";
+
+    private DotNetObjectReference<DocumentEditorPage>? _dotNetHelper;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDocumentAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _document != null)
+        {
+            _dotNetHelper = DotNetObjectReference.Create(this);
+            var initialContent = "";
+            var main = _document.Files.FirstOrDefault(f => f.IsMain) ?? _document.Files.FirstOrDefault();
+            if (main != null)
+            {
+                _activeFileId = main.Id;
+                initialContent = await DocumentClient.GetFileContentAsync(_document.Id, main.Id) ?? "";
+            }
+
+            await JSRuntime.InvokeVoidAsync("PavenaStudio.initEditor", "studio-monaco-container", initialContent, "latex", _dotNetHelper, false);
+        }
+    }
+
+    private async Task LoadDocumentAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _document = await DocumentClient.GetDocumentByIdAsync(Id);
+            if (_document != null)
+            {
+                var mainFile = _document.Files.FirstOrDefault(f => f.IsMain) ?? _document.Files.FirstOrDefault();
+                if (mainFile != null)
+                {
+                    _activeFileId = mainFile.Id;
+                }
+
+                // Load versions & comments concurrently
+                var versionsTask = DocumentClient.GetVersionsAsync(Id);
+                var commentsTask = DocumentClient.GetCommentsAsync(Id);
+                await Task.WhenAll(versionsTask, commentsTask);
+
+                _versions = (await versionsTask).ToList();
+                _comments = (await commentsTask).ToList();
+
+                // Check recent compilation
+                var history = await DocumentClient.GetCompilationHistoryAsync(Id, 1);
+                var lastJob = history.FirstOrDefault();
+                if (lastJob != null)
+                {
+                    _compiledPdfUrl = lastJob.PdfDownloadUrl;
+                    _compilerLogs = lastJob.OutputLog ?? "";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Error loading document: " + ex.Message);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SelectFileAsync(Guid fileId)
+    {
+        if (_activeFileId == fileId || _document == null) return;
+
+        // Auto-save currently active file if dirty
+        if (_unsavedChanges.Contains(_activeFileId))
+        {
+            await SaveCurrentFileAsync();
+        }
+
+        var targetFile = _document.Files.FirstOrDefault(f => f.Id == fileId);
+        if (targetFile == null || targetFile.IsBinary) return;
+
+        _activeFileId = fileId;
+        var content = await DocumentClient.GetFileContentAsync(_document.Id, fileId) ?? "";
+        await JSRuntime.InvokeVoidAsync("PavenaStudio.switchFileModel", fileId.ToString(), content, targetFile.FileExtension);
+    }
+
+    private async Task SaveCurrentFileAsync()
+    {
+        if (_document == null || _activeFile == null) return;
+        var content = await JSRuntime.InvokeAsync<string>("PavenaStudio.getContent");
+        await DocumentClient.UpdateFileContentAsync(_document.Id, _activeFileId, content);
+        _unsavedChanges.Remove(_activeFileId);
+    }
+
+    private async Task HandleCompilePdf()
+    {
+        if (_document == null || _isCompiling) return;
+
+        // Save active editor changes before compiling
+        await SaveCurrentFileAsync();
+
+        _isCompiling = true;
+        _pdfViewTab = "pdf";
+        StateHasChanged();
+
+        try
+        {
+            var job = await DocumentClient.TriggerCompilationAsync(_document.Id, new TriggerCompilationRequest(CompilationEngine.PdfLatex));
+            if (job != null)
+            {
+                _compiledPdfUrl = job.PdfDownloadUrl;
+                _compilerLogs = job.OutputLog ?? "";
+
+                if (job.Status == CompilationStatus.Succeeded)
+                {
+                    ToastService.ShowSuccess("Compilation succeeded. PDF preview updated.");
+                }
+                else
+                {
+                    ToastService.ShowError("LaTeX compilation failed. Check compiler log for details.");
+                    _pdfViewTab = "log";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Compiler execution error: " + ex.Message);
+        }
+        finally
+        {
+            _isCompiling = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleCreateFileAsync()
+    {
+        if (_document == null || string.IsNullOrWhiteSpace(_newFilePath)) return;
+
+        try
+        {
+            var created = await DocumentClient.CreateFileAsync(_document.Id, new CreateFileRequest(_newFilePath, "% " + _newFilePath, false));
+            if (created != null)
+            {
+                _document = await DocumentClient.GetDocumentByIdAsync(_document.Id);
+                _showNewFileModal = false;
+                _newFilePath = "";
+                await SelectFileAsync(created.Id);
+                ToastService.ShowSuccess($"File '{created.FileName}' created.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+    }
+
+    private async Task SetAsMainFileAsync(Guid fileId)
+    {
+        if (_document == null) return;
+        try
+        {
+            var success = await DocumentClient.SetMainFileAsync(_document.Id, fileId);
+            if (success)
+            {
+                _document = await DocumentClient.GetDocumentByIdAsync(_document.Id);
+                ToastService.ShowSuccess("Main compilation entry file updated.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+    }
+
+    private async Task DeleteFileAsync(Guid fileId)
+    {
+        if (_document == null) return;
+        try
+        {
+            var success = await DocumentClient.DeleteFileAsync(_document.Id, fileId);
+            if (success)
+            {
+                _document = await DocumentClient.GetDocumentByIdAsync(_document.Id);
+                var fallback = _document?.Files.FirstOrDefault(f => !f.IsBinary);
+                if (fallback != null)
+                {
+                    await SelectFileAsync(fallback.Id);
+                }
+                ToastService.ShowSuccess("File deleted.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+    }
+
+    private async Task HandleCreateVersionAsync()
+    {
+        if (_document == null || string.IsNullOrWhiteSpace(_newVersionTitle)) return;
+        try
+        {
+            var v = await DocumentClient.CreateVersionAsync(_document.Id, new CreateVersionRequest(_newVersionTitle, _newVersionDescription));
+            if (v != null)
+            {
+                _versions.Insert(0, v);
+                _showNewVersionModal = false;
+                _newVersionTitle = "";
+                _newVersionDescription = "";
+                ToastService.ShowSuccess($"Snapshot v{v.VersionNumber} captured.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+    }
+
+    private async Task RestoreVersionAsync(Guid versionId)
+    {
+        if (_document == null) return;
+        try
+        {
+            var restored = await DocumentClient.RestoreVersionAsync(_document.Id, versionId);
+            if (restored != null)
+            {
+                _document = restored;
+                var main = _document.Files.FirstOrDefault(f => f.IsMain) ?? _document.Files.FirstOrDefault();
+                if (main != null)
+                {
+                    await SelectFileAsync(main.Id);
+                }
+                _versions = (await DocumentClient.GetVersionsAsync(_document.Id)).ToList();
+                ToastService.ShowSuccess("Document restored successfully.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+    }
+
+    private async Task HandleAddComment()
+    {
+        if (_document == null || string.IsNullOrWhiteSpace(_newCommentText)) return;
+        try
+        {
+            var comment = await DocumentClient.CreateCommentAsync(_document.Id, new CreateCommentRequest(
+                _newCommentText,
+                _activeFileId,
+                _currentLine
+            ));
+
+            if (comment != null)
+            {
+                _comments.Add(comment);
+                _newCommentText = "";
+                ToastService.ShowSuccess("Comment added.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+    }
+
+    private async Task ResolveCommentAsync(Guid commentId)
+    {
+        if (_document == null) return;
+        try
+        {
+            var resolved = await DocumentClient.ResolveCommentAsync(_document.Id, commentId);
+            if (resolved != null)
+            {
+                var idx = _comments.FindIndex(c => c.Id == commentId);
+                if (idx >= 0) _comments[idx] = resolved;
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+    }
+
+    private async Task HandleRequestReviewAsync()
+    {
+        if (_document == null || _selectedReviewerUserId == Guid.Empty) return;
+        try
+        {
+            var r = await DocumentClient.RequestReviewAsync(_document.Id, new RequestReviewRequest(_selectedReviewerUserId));
+            if (r != null)
+            {
+                _showNewReviewModal = false;
+                ToastService.ShowSuccess("Review requested.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+    }
+
+    // Monaco Editor Invokable Callbacks
+    [JSInvokable]
+    public void OnEditorContentChanged(string newContent)
+    {
+        _unsavedChanges.Add(_activeFileId);
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnCursorPositionChanged(int lineNumber, int column)
+    {
+        _currentLine = lineNumber;
+        _currentCol = column;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnSaveShortcutTriggered()
+    {
+        await SaveCurrentFileAsync();
+        ToastService.ShowSuccess("Changes saved.");
+    }
+
+    [JSInvokable]
+    public async Task OnCompileShortcutTriggered()
+    {
+        await HandleCompilePdf();
+    }
+
+    private static string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "U";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 1
+            ? $"{parts[0][0]}{parts[1][0]}".ToUpperInvariant()
+            : name.Substring(0, Math.Min(2, name.Length)).ToUpperInvariant();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("PavenaStudio.dispose");
+        }
+        catch { }
+        _dotNetHelper?.Dispose();
+    }
+}

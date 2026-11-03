@@ -43,6 +43,14 @@ public class PavenaDbContext : IdentityDbContext<User, PlatformRole, Guid>, IPav
 
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<DocumentCollaborator> DocumentCollaborators => Set<DocumentCollaborator>();
+    public DbSet<DocumentFile> DocumentFiles => Set<DocumentFile>();
+    public DbSet<DocumentCrdtUpdate> DocumentCrdtUpdates => Set<DocumentCrdtUpdate>();
+    public DbSet<DocumentSnapshot> DocumentSnapshots => Set<DocumentSnapshot>();
+    public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
+    public DbSet<CompilationJob> CompilationJobs => Set<CompilationJob>();
+    public DbSet<CompilationArtifact> CompilationArtifacts => Set<CompilationArtifact>();
+    public DbSet<DocumentComment> DocumentComments => Set<DocumentComment>();
+    public DbSet<DocumentReview> DocumentReviews => Set<DocumentReview>();
 
     public PavenaDbContext(DbContextOptions<PavenaDbContext> options) : base(options)
     {
