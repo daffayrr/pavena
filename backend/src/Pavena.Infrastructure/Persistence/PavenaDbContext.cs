@@ -9,6 +9,7 @@ using Pavena.Domain.Entities.Documents;
 using Pavena.Domain.Entities.Identity;
 using Pavena.Domain.Entities.Organizations;
 using Pavena.Domain.Entities.Profiles;
+using Pavena.Domain.Entities.Proposals;
 using Pavena.Domain.Entities.Research;
 using Pavena.Domain.Entities.Social;
 
@@ -62,6 +63,16 @@ public class PavenaDbContext : IdentityDbContext<User, PlatformRole, Guid>, IPav
     public DbSet<ChallengeActivityLog> ChallengeActivityLogs => Set<ChallengeActivityLog>();
     public DbSet<ChallengeNdaAgreement> ChallengeNdaAgreements => Set<ChallengeNdaAgreement>();
 
+    public DbSet<ResearchProposal> ResearchProposals => Set<ResearchProposal>();
+    public DbSet<ProposalInvestigator> ProposalInvestigators => Set<ProposalInvestigator>();
+    public DbSet<ProposalResearchDomain> ProposalResearchDomains => Set<ProposalResearchDomain>();
+    public DbSet<ProposalExpertise> ProposalExpertise => Set<ProposalExpertise>();
+    public DbSet<ProposalAttachment> ProposalAttachments => Set<ProposalAttachment>();
+    public DbSet<ProposalVersionSnapshot> ProposalVersionSnapshots => Set<ProposalVersionSnapshot>();
+    public DbSet<ProposalReviewAssignment> ProposalReviewAssignments => Set<ProposalReviewAssignment>();
+    public DbSet<ProposalAssessment> ProposalAssessments => Set<ProposalAssessment>();
+    public DbSet<ProposalActivityLog> ProposalActivityLogs => Set<ProposalActivityLog>();
+
     public PavenaDbContext(DbContextOptions<PavenaDbContext> options) : base(options)
     {
         ChangeTracker.Tracked += OnEntityTracked;
@@ -70,7 +81,7 @@ public class PavenaDbContext : IdentityDbContext<User, PlatformRole, Guid>, IPav
 
     private void OnEntityTracked(object? sender, EntityTrackedEventArgs e)
     {
-        if (!e.FromQuery && e.Entry.State == EntityState.Modified && e.Entry.Entity is BaseEntity)
+        if (!e.FromQuery && e.Entry.State == EntityState.Modified && (e.Entry.Entity is BaseEntity || e.Entry.Entity.GetType().Namespace?.Contains("Proposals") == true))
         {
             e.Entry.State = EntityState.Added;
         }
@@ -78,7 +89,7 @@ public class PavenaDbContext : IdentityDbContext<User, PlatformRole, Guid>, IPav
 
     private void OnEntityStateChanged(object? sender, EntityStateChangedEventArgs e)
     {
-        if (e.OldState == EntityState.Detached && e.NewState == EntityState.Modified && e.Entry.Entity is BaseEntity)
+        if (e.OldState == EntityState.Detached && e.NewState == EntityState.Modified && (e.Entry.Entity is BaseEntity || e.Entry.Entity.GetType().Namespace?.Contains("Proposals") == true))
         {
             e.Entry.State = EntityState.Added;
         }
@@ -86,9 +97,9 @@ public class PavenaDbContext : IdentityDbContext<User, PlatformRole, Guid>, IPav
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+        foreach (var entry in ChangeTracker.Entries())
         {
-            if (entry.State == EntityState.Modified && entry.Entity is ProjectActivityLog)
+            if (entry.State == EntityState.Modified && (entry.Entity is ProjectActivityLog || entry.Entity is ProposalActivityLog))
             {
                 entry.State = EntityState.Added;
             }

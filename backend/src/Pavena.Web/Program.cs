@@ -3,6 +3,7 @@ using Pavena.Web.Services.Challenges;
 using Pavena.Web.Services.Documents;
 using Pavena.Web.Services.Profile;
 using Pavena.Web.Services.Projects;
+using Pavena.Web.Services.Proposals;
 using Pavena.Web.Services.Theme;
 using Pavena.Web.Services.Toast;
 
@@ -32,6 +33,10 @@ builder.Services.AddHttpClient<IDocumentClient, DocumentClient>(client =>
     client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
 });
 builder.Services.AddHttpClient<IChallengeClient, ChallengeClient>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
+});
+builder.Services.AddHttpClient<IProposalClient, ProposalClient>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
 });

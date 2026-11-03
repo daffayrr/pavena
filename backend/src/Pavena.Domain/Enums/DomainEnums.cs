@@ -306,4 +306,92 @@ public enum RequirementImportance
     Optional = 3
 }
 
+public enum ProposalStatus
+{
+    Draft = 1,
+    Submitted = 2,
+    EligibilityReview = 3,
+    UnderReview = 4,
+    RevisionRequested = 5,
+    Resubmitted = 6,
+    Accepted = 7,
+    Rejected = 8,
+    Withdrawn = 9,
+    ConvertedToProject = 10
+}
+
+public enum InvestigatorRole
+{
+    LeadInvestigator = 1,
+    CoInvestigator = 2,
+    PostdoctoralResearcher = 3,
+    GraduateResearcher = 4,
+    Consultant = 5
+}
+
+public enum ProposalConfidentialityLevel
+{
+    Confidential = 1,
+    RestrictedToSponsorAndReviewers = 2,
+    ProprietaryCommercial = 3
+}
+
+public enum ProposalAttachmentType
+{
+    TechnicalProposal = 1,
+    BudgetPlan = 2,
+    InstitutionalEndorsement = 3,
+    PreliminaryData = 4,
+    Supplementary = 5
+}
+
+public enum ReviewAssignmentStatus
+{
+    Assigned = 1,
+    Accepted = 2,
+    Declined = 3,
+    Recused = 4,
+    Completed = 5
+}
+
+public enum AssessmentStatus
+{
+    Draft = 1,
+    Submitted = 2
+}
+
+public enum AssessmentRecommendation
+{
+    RecommendAccept = 1,
+    RecommendRevision = 2,
+    RecommendReject = 3
+}
+
+public enum ProposalActivityType
+{
+    Created = 1,
+    Updated = 2,
+    Submitted = 3,
+    EligibilityPassed = 4,
+    EligibilityFailed = 5,
+    ReviewerAssigned = 6,
+    ReviewCompleted = 7,
+    RevisionRequested = 8,
+    Resubmitted = 9,
+    Accepted = 10,
+    Rejected = 11,
+    Withdrawn = 12,
+    ConvertedToProject = 13
+}
+
+public enum CoiDeclarationType
+{
+    None = 1,
+    InstitutionalProximity = 2,
+    PastCollaboration = 3,
+    FinancialOrCommercial = 4,
+    Other = 5
+}
+
+
 

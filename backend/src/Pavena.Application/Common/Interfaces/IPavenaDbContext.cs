@@ -5,6 +5,7 @@ using Pavena.Domain.Entities.Documents;
 using Pavena.Domain.Entities.Identity;
 using Pavena.Domain.Entities.Organizations;
 using Pavena.Domain.Entities.Profiles;
+using Pavena.Domain.Entities.Proposals;
 using Pavena.Domain.Entities.Research;
 using Pavena.Domain.Entities.Social;
 
@@ -58,6 +59,16 @@ public interface IPavenaDbContext
     DbSet<ChallengeApproval> ChallengeApprovals { get; }
     DbSet<ChallengeActivityLog> ChallengeActivityLogs { get; }
     DbSet<ChallengeNdaAgreement> ChallengeNdaAgreements { get; }
+
+    DbSet<ResearchProposal> ResearchProposals { get; }
+    DbSet<ProposalInvestigator> ProposalInvestigators { get; }
+    DbSet<ProposalResearchDomain> ProposalResearchDomains { get; }
+    DbSet<ProposalExpertise> ProposalExpertise { get; }
+    DbSet<ProposalAttachment> ProposalAttachments { get; }
+    DbSet<ProposalVersionSnapshot> ProposalVersionSnapshots { get; }
+    DbSet<ProposalReviewAssignment> ProposalReviewAssignments { get; }
+    DbSet<ProposalAssessment> ProposalAssessments { get; }
+    DbSet<ProposalActivityLog> ProposalActivityLogs { get; }
 
     Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
 

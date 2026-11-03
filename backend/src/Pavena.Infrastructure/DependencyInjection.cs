@@ -10,6 +10,7 @@ using Pavena.Application.Challenges.Interfaces;
 using Pavena.Application.Common.Interfaces;
 using Pavena.Application.Documents.Interfaces;
 using Pavena.Application.Identity.Interfaces;
+using Pavena.Application.Proposals.Interfaces;
 using Pavena.Application.Research.Interfaces;
 using Pavena.Application.Social.Interfaces;
 using Pavena.Domain.Entities.Identity;
@@ -17,6 +18,7 @@ using Pavena.Infrastructure.Challenges;
 using Pavena.Infrastructure.Documents;
 using Pavena.Infrastructure.Identity;
 using Pavena.Infrastructure.Persistence;
+using Pavena.Infrastructure.Proposals;
 using Pavena.Infrastructure.Research;
 using Pavena.Infrastructure.Social;
 using Pavena.Infrastructure.Storage;
@@ -141,6 +143,10 @@ public static class DependencyInjection
         services.AddScoped<IChallengeService, ChallengeService>();
         services.AddScoped<IChallengeAttachmentService, ChallengeAttachmentService>();
         services.AddScoped<IChallengeNdaService, ChallengeNdaService>();
+        services.AddScoped<IProposalService, ProposalService>();
+        services.AddScoped<IProposalEligibilityService, ProposalEligibilityService>();
+        services.AddScoped<IProposalReviewService, ProposalReviewService>();
+        services.AddScoped<IProposalConversionService, ProposalConversionService>();
         services.AddScoped<DatabaseSeeder>();
 
         return services;

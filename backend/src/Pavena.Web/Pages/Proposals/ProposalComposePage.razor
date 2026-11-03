@@ -1,0 +1,561 @@
+@page "/challenges/{ChallengeId:guid}/proposals/new"
+@page "/proposals/{ProposalId:guid}/edit"
+@using Pavena.Application.Proposals.DTOs
+@using Pavena.Application.Challenges.DTOs
+@using Pavena.Domain.Enums
+@using Pavena.Web.Services.Proposals
+@using Pavena.Web.Services.Challenges
+@using Pavena.Web.Services.Auth
+@using Pavena.Web.Services.Toast
+@inject IProposalClient ProposalClient
+@inject IChallengeClient ChallengeClient
+@inject NavigationManager Navigation
+@inject IToastService Toast
+@inject IScholarSessionService Session
+
+<div class="pv-proposal-compose-container">
+    @if (_isLoading)
+    {
+        <PvLoading Text="Memuat formulir proposal..." />
+    }
+    else
+    {
+        <div class="pv-page-header">
+            <div class="pv-breadcrumb">
+                <a href="/challenges" class="pv-breadcrumb-link">Tantangan Industri</a>
+                <span class="pv-breadcrumb-sep">/</span>
+                @if (_challenge != null)
+                {
+                    <a href="/challenges/@_challenge.Id" class="pv-breadcrumb-link">@_challenge.Title</a>
+                    <span class="pv-breadcrumb-sep">/</span>
+                }
+                <span class="pv-breadcrumb-current">@(IsEditMode ? "Perbarui Proposal" : "Ajukan Proposal Riset")</span>
+            </div>
+            <div class="pv-header-row">
+                <div>
+                    <h1 class="pv-page-title">@(IsEditMode ? "Perbarui Usulan Riset" : "Penyusunan Proposal Riset")</h1>
+                    <p class="pv-page-subtitle">Jalur Hilir: Kolaborasi Riset Terapan Terpadu</p>
+                </div>
+                <div class="pv-header-actions">
+                    <button class="pv-btn pv-btn-outline" @onclick="NavigateBack">Batal</button>
+                    <button class="pv-btn pv-btn-secondary" @onclick="SaveDraftAsync" disabled="@_isSaving">
+                        @if (_isSaving) { <span>Menyimpan...</span> } else { <span>Simpan Draf</span> }
+                    </button>
+                    <button class="pv-btn pv-btn-primary" @onclick="SubmitProposalAsync" disabled="@_isSubmitting">
+                        @if (_isSubmitting) { <span>Memproses...</span> } else { <span>Ajukan Proposal Resmi</span> }
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="pv-alert pv-alert-danger" style="margin-bottom: 1.5rem;">
+                <div class="pv-alert-icon">⚠️</div>
+                <div class="pv-alert-body">@_errorMessage</div>
+            </div>
+        }
+
+        <div class="pv-compose-grid">
+            <!-- Main Content Form -->
+            <div class="pv-compose-main">
+                <!-- Section 1: Challenge Context Brief -->
+                @if (_challenge != null)
+                {
+                    <div class="pv-card" style="margin-bottom: 1.5rem; background: var(--pv-color-surface-hover);">
+                        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--pv-color-text-muted); font-weight: 600;">Target Tantangan Industri</div>
+                        <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--pv-color-primary); margin: 0.25rem 0;">@_challenge.Title</h3>
+                        <p style="font-size: 0.875rem; color: var(--pv-color-text-secondary); margin: 0;">@_challenge.Summary</p>
+                        <div style="display: flex; gap: 1rem; margin-top: 0.75rem; font-size: 0.8125rem;">
+                            <span><strong>Penyelenggara:</strong> @_challenge.OrganizationName</span>
+                            <span><strong>Batas Akhir:</strong> @_challenge.SubmissionDeadlineUtc.ToString("dd MMM yyyy")</span>
+                            <span><strong>Batas Anggaran:</strong> @(_challenge.MaxBudget.HasValue ? $"{_challenge.Currency} {_challenge.MaxBudget:N0}" : "Fleksibel")</span>
+                        </div>
+                    </div>
+                }
+
+                <!-- Section 2: Core Proposal Identification -->
+                <div class="pv-card" style="margin-bottom: 1.5rem;">
+                    <h2 class="pv-section-title">1. Identitas & Ringkasan Eksekutif</h2>
+
+                    <div class="pv-form-group">
+                        <label class="pv-label">Judul Proposal Riset <span class="pv-required">*</span></label>
+                        <input type="text" class="pv-input" @bind="_title" placeholder="Contoh: Pengembangan Katalis Berbasis Zeolit Alam untuk Pemurnian Biometana..." />
+                    </div>
+
+                    <div class="pv-form-group">
+                        <label class="pv-label">Abstrak Penelitian <span class="pv-required">*</span></label>
+                        <textarea class="pv-textarea" rows="4" @bind="_abstract" placeholder="Ringkasan komprehensif latar belakang, kebaruan, metodologi utama, dan target luaran..."></textarea>
+                    </div>
+
+                    <div class="pv-form-group">
+                        <label class="pv-label">Rumusan Masalah (Problem Statement) <span class="pv-required">*</span></label>
+                        <textarea class="pv-textarea" rows="4" @bind="_problemStatement" placeholder="Jelaskan gap teknologi atau tantangan industri yang akan dipecahkan..."></textarea>
+                    </div>
+
+                    <div class="pv-form-group">
+                        <label class="pv-label">Tujuan Riset (Research Objectives) <span class="pv-required">*</span></label>
+                        <textarea class="pv-textarea" rows="4" @bind="_researchObjectives" placeholder="Daftar tujuan terukur (SMART objectives) dari proyek riset ini..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Section 3: Methodology & Deliverables -->
+                <div class="pv-card" style="margin-bottom: 1.5rem;">
+                    <h2 class="pv-section-title">2. Metodologi Riset & Luaran</h2>
+
+                    <div class="pv-form-group">
+                        <label class="pv-label">Metodologi & Rencana Kerja Ilmiah <span class="pv-required">*</span></label>
+                        <textarea class="pv-textarea" rows="6" @bind="_proposedMethodology" placeholder="Uraikan tahapan riset, pendekatan eksperimental/komputasi, validasi data, dan manajemen risiko teknis..."></textarea>
+                    </div>
+
+                    <div class="pv-form-group">
+                        <label class="pv-label">Target Luaran & Dampak Terapan (Expected Outcomes) <span class="pv-required">*</span></label>
+                        <textarea class="pv-textarea" rows="4" @bind="_expectedOutcomes" placeholder="Prototipe teruji, publikasi terindeks, paten/HKI, dokumen rancang bangun, implementasi industri..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Section 4: Budget & Timeline -->
+                <div class="pv-card" style="margin-bottom: 1.5rem;">
+                    <h2 class="pv-section-title">3. Alokasi Anggaran & Jadwal</h2>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                        <div class="pv-form-group">
+                            <label class="pv-label">Durasi Riset (Bulan) <span class="pv-required">*</span></label>
+                            <input type="number" class="pv-input" @bind="_proposedTimelineMonths" min="1" max="120" />
+                        </div>
+                        <div class="pv-form-group">
+                            <label class="pv-label">Mata Uang</label>
+                            <input type="text" class="pv-input" @bind="_currency" />
+                        </div>
+                        <div class="pv-form-group">
+                            <label class="pv-label">Usulan Anggaran <span class="pv-required">*</span></label>
+                            <input type="number" class="pv-input" @bind="_proposedBudget" step="1000" min="0" />
+                        </div>
+                    </div>
+
+                    <div class="pv-form-group">
+                        <label class="pv-label">Justifikasi Anggaran & Rincian Pengeluaran</label>
+                        <textarea class="pv-textarea" rows="3" @bind="_fundingJustification" placeholder="Rincian pos pengeluaran: bahan habis pakai, operasional alat lab, kompensasi peneliti, pengujian lapangan..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Section 5: Research Domains & Tags -->
+                <div class="pv-card" style="margin-bottom: 1.5rem;">
+                    <h2 class="pv-section-title">4. Klasifikasi Bidang Ilmu & Kata Kunci</h2>
+
+                    <div class="pv-form-group">
+                        <label class="pv-label">Domain Riset (Pisahkan dengan koma)</label>
+                        <input type="text" class="pv-input" @bind="_domainsInput" placeholder="Contoh: Energi Terbarukan, Teknik Kimia, Katalisis Heterogen" />
+                    </div>
+
+                    <div class="pv-form-group">
+                        <label class="pv-label">Keahlian Spesifik / Kata Kunci (Pisahkan dengan koma)</label>
+                        <input type="text" class="pv-input" @bind="_expertiseInput" placeholder="Contoh: Pyrolysis, XRD, GC-MS, Reaction Kinetics" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar: Team, Checklist & Attachments -->
+            <div class="pv-compose-sidebar">
+                <!-- Eligibility Checklist Widget -->
+                <div class="pv-card" style="margin-bottom: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <h3 class="pv-widget-title" style="margin: 0;">Pemeriksaan Kelayakan</h3>
+                        <button class="pv-btn-text" @onclick="RefreshEligibilityAsync" title="Periksa Ulang">🔄 Cek</button>
+                    </div>
+
+                    @if (_eligibilityCheck != null)
+                    {
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.8125rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span>@(_eligibilityCheck.HasAgreedNda ? "✅" : "❌")</span>
+                                <span>Persetujuan NDA Digital</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span>@(_eligibilityCheck.MeetsInstitutionalAffiliation ? "✅" : "❌")</span>
+                                <span>Afiliasi Institusi Terverifikasi</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span>@(_eligibilityCheck.IsProfileComplete ? "✅" : "❌")</span>
+                                <span>Kelengkapan Profil Peneliti</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span>@(_eligibilityCheck.IsEligible ? "✅" : "⚠️")</span>
+                                <strong>@(_eligibilityCheck.IsEligible ? "Memenuhi Seluruh Syarat" : "Belum Memenuhi Syarat")</strong>
+                            </div>
+
+                            @if (!_eligibilityCheck.IsEligible)
+                            {
+                                <div style="color: var(--pv-color-danger); margin-top: 0.5rem; font-size: 0.75rem;">
+                                    @foreach (var reason in _eligibilityCheck.FailureReasons)
+                                    {
+                                        <div>• @reason</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin: 0;">Klik tombol di atas untuk memeriksa kelayakan profil terhadap tantangan ini.</p>
+                    }
+                </div>
+
+                <!-- Team Management Widget -->
+                <div class="pv-card" style="margin-bottom: 1.5rem;">
+                    <h3 class="pv-widget-title">Tim Peneliti</h3>
+                    <div style="font-size: 0.8125rem; color: var(--pv-color-text-secondary); margin-bottom: 0.75rem;">
+                        <strong>Ketua Peneliti:</strong> @(Session.CurrentDisplayName ?? "Anda Sendiri")
+                    </div>
+
+                    @if (_investigators.Any())
+                    {
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+                            @foreach (var inv in _investigators)
+                            {
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: var(--pv-color-surface-hover); border-radius: var(--pv-radius-md);">
+                                    <div>
+                                        <div style="font-weight: 600; font-size: 0.8125rem;">@inv.FullName</div>
+                                        <div style="font-size: 0.6875rem; color: var(--pv-color-text-muted);">@inv.Role</div>
+                                    </div>
+                                    <button class="pv-btn-text pv-btn-danger" @onclick="() => RemoveInvestigator(inv.UserId)">✕</button>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <input type="text" class="pv-input" placeholder="User ID Peneliti..." @bind="_newInvestigatorUserId" style="font-size: 0.75rem;" />
+                        <select class="pv-input" @bind="_newInvestigatorRole" style="font-size: 0.75rem;">
+                            <option value="@InvestigatorRole.CoInvestigator">Anggota Peneliti (Co-Investigator)</option>
+                            <option value="@InvestigatorRole.PostdoctoralResearcher">Peneliti Postdoktoral</option>
+                            <option value="@InvestigatorRole.GraduateResearcher">Asisten Peneliti Pascasarjana</option>
+                            <option value="@InvestigatorRole.Consultant">Konsultan Teknis</option>
+                        </select>
+                        <button class="pv-btn pv-btn-outline pv-btn-sm" @onclick="AddInvestigatorAsync">+ Tambah Peneliti</button>
+                    </div>
+                </div>
+
+                <!-- Attachments Widget -->
+                <div class="pv-card">
+                    <h3 class="pv-widget-title">Lampiran Proposal</h3>
+                    <p style="font-size: 0.75rem; color: var(--pv-color-text-muted); margin-bottom: 0.75rem;">
+                        Format yang didukung: PDF, ZIP (Maksimal 25 MB).
+                    </p>
+
+                    @if (_attachments.Any())
+                    {
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+                            @foreach (var att in _attachments)
+                            {
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: var(--pv-color-surface-hover); border-radius: var(--pv-radius-md); font-size: 0.75rem;">
+                                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;">
+                                        📄 @att.FileName
+                                    </div>
+                                    <button class="pv-btn-text pv-btn-danger" @onclick="() => DeleteAttachment(att.Id)">✕</button>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <InputFile OnChange="HandleFileUpload" class="pv-file-input" />
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid? ChallengeId { get; set; }
+    [Parameter] public Guid? ProposalId { get; set; }
+
+    private bool IsEditMode => ProposalId.HasValue;
+
+    private bool _isLoading = true;
+    private bool _isSaving = false;
+    private bool _isSubmitting = false;
+    private string? _errorMessage;
+
+    private ChallengeDetailDto? _challenge;
+    private ProposalDetailResponse? _proposal;
+    private EligibilityCheckResult? _eligibilityCheck;
+
+    private string _title = string.Empty;
+    private string _abstract = string.Empty;
+    private string _problemStatement = string.Empty;
+    private string _researchObjectives = string.Empty;
+    private string _proposedMethodology = string.Empty;
+    private string _expectedOutcomes = string.Empty;
+    private int _proposedTimelineMonths = 12;
+    private decimal _proposedBudget = 50000;
+    private string _currency = "USD";
+    private string? _fundingJustification;
+    private string _domainsInput = string.Empty;
+    private string _expertiseInput = string.Empty;
+
+    private List<InvestigatorResponse> _investigators = new();
+    private List<ProposalAttachmentResponse> _attachments = new();
+
+    private string _newInvestigatorUserId = string.Empty;
+    private InvestigatorRole _newInvestigatorRole = InvestigatorRole.CoInvestigator;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            if (IsEditMode && ProposalId.HasValue)
+            {
+                _proposal = await ProposalClient.GetByIdAsync(ProposalId.Value);
+                if (_proposal != null)
+                {
+                    ChallengeId = _proposal.ChallengeId;
+                    _challenge = await ChallengeClient.GetChallengeByIdAsync(_proposal.ChallengeId);
+
+                    _title = _proposal.Title;
+                    _abstract = _proposal.Abstract;
+                    _problemStatement = _proposal.ProblemStatement;
+                    _researchObjectives = _proposal.ResearchObjectives;
+                    _proposedMethodology = _proposal.ProposedMethodology;
+                    _expectedOutcomes = _proposal.ExpectedOutcomes;
+                    _proposedTimelineMonths = _proposal.ProposedTimelineMonths;
+                    _proposedBudget = _proposal.ProposedBudget;
+                    _currency = _proposal.Currency;
+                    _fundingJustification = _proposal.FundingJustification;
+                    _domainsInput = string.Join(", ", _proposal.Domains);
+                    _expertiseInput = string.Join(", ", _proposal.ExpertiseTags);
+                    _investigators = _proposal.Investigators.Where(i => i.Role != InvestigatorRole.LeadInvestigator).ToList();
+                    _attachments = _proposal.Attachments.ToList();
+
+                    _eligibilityCheck = await ProposalClient.CheckEligibilityAsync(_proposal.Id);
+                }
+            }
+            else if (ChallengeId.HasValue)
+            {
+                _challenge = await ChallengeClient.GetChallengeByIdAsync(ChallengeId.Value);
+                if (_challenge != null)
+                {
+                    _proposedBudget = _challenge.MaxBudget ?? 50000;
+                    _currency = _challenge.Currency ?? "USD";
+                    _proposedTimelineMonths = _challenge.EstimatedDurationMonths ?? 12;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Gagal memuat data formulir: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task RefreshEligibilityAsync()
+    {
+        if (ProposalId.HasValue)
+        {
+            _eligibilityCheck = await ProposalClient.CheckEligibilityAsync(ProposalId.Value);
+        }
+        else
+        {
+            Toast.ShowInfo("Kelayakan akan dievaluasi secara otomatis saat proposal disimpan sebagai draf.");
+        }
+    }
+
+    private async Task SaveDraftAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_title))
+        {
+            _errorMessage = "Judul proposal wajib diisi.";
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+
+        try
+        {
+            var domains = _domainsInput.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList();
+            var expertise = _expertiseInput.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList();
+
+            if (IsEditMode && ProposalId.HasValue)
+            {
+                var updateReq = new UpdateProposalDraftRequest(
+                    _title,
+                    _abstract,
+                    _problemStatement,
+                    _researchObjectives,
+                    _proposedMethodology,
+                    _expectedOutcomes,
+                    _proposedTimelineMonths,
+                    _proposedBudget,
+                    _currency,
+                    _fundingJustification,
+                    ProposalConfidentialityLevel.Confidential,
+                    null,
+                    domains,
+                    expertise);
+
+                var updated = await ProposalClient.UpdateDraftAsync(ProposalId.Value, updateReq);
+                if (updated != null)
+                {
+                    Toast.ShowSuccess("Draf proposal berhasil diperbarui.");
+                }
+            }
+            else if (ChallengeId.HasValue)
+            {
+                var createReq = new CreateProposalDraftRequest(
+                    ChallengeId.Value,
+                    _title,
+                    _abstract,
+                    _problemStatement,
+                    _researchObjectives,
+                    _proposedMethodology,
+                    _expectedOutcomes,
+                    _proposedTimelineMonths,
+                    _proposedBudget,
+                    _currency,
+                    _fundingJustification,
+                    ProposalConfidentialityLevel.Confidential,
+                    null,
+                    domains,
+                    expertise);
+
+                var created = await ProposalClient.CreateDraftAsync(createReq);
+                if (created != null)
+                {
+                    Toast.ShowSuccess("Draf proposal berhasil disimpan.");
+                    Navigation.NavigateTo($"/proposals/{created.Id}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Gagal menyimpan draf: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task SubmitProposalAsync()
+    {
+        _isSubmitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            // First save latest draft changes
+            await SaveDraftAsync();
+
+            if (ProposalId.HasValue)
+            {
+                var submitted = await ProposalClient.SubmitAsync(ProposalId.Value);
+                if (submitted != null)
+                {
+                    Toast.ShowSuccess("Proposal riset berhasil diajukan untuk evaluasi!");
+                    Navigation.NavigateTo($"/proposals/{ProposalId.Value}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Pengajuan proposal gagal: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task AddInvestigatorAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newInvestigatorUserId) || !Guid.TryParse(_newInvestigatorUserId, out var targetUserId))
+        {
+            Toast.ShowError("User ID tidak valid.");
+            return;
+        }
+
+        if (ProposalId.HasValue)
+        {
+            var req = new AddInvestigatorRequest(targetUserId, _newInvestigatorRole, "Kolaborator Riset");
+            var res = await ProposalClient.AddInvestigatorAsync(ProposalId.Value, req);
+            if (res != null)
+            {
+                _investigators = res.Investigators.Where(i => i.Role != InvestigatorRole.LeadInvestigator).ToList();
+                _newInvestigatorUserId = string.Empty;
+                Toast.ShowSuccess("Peneliti berhasil ditambahkan ke tim usulan.");
+            }
+        }
+    }
+
+    private async Task RemoveInvestigator(Guid userId)
+    {
+        if (ProposalId.HasValue)
+        {
+            var res = await ProposalClient.RemoveInvestigatorAsync(ProposalId.Value, userId);
+            if (res != null)
+            {
+                _investigators = res.Investigators.Where(i => i.Role != InvestigatorRole.LeadInvestigator).ToList();
+                Toast.ShowSuccess("Peneliti berhasil dihapus dari tim.");
+            }
+        }
+    }
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        if (!ProposalId.HasValue)
+        {
+            Toast.ShowWarning("Simpan draf proposal terlebih dahulu sebelum mengunggah lampiran.");
+            return;
+        }
+
+        try
+        {
+            var file = e.File;
+            using var stream = file.OpenReadStream(25 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+
+            var uploaded = await ProposalClient.UploadAttachmentAsync(
+                ProposalId.Value,
+                file.Name,
+                ms.ToArray(),
+                file.ContentType,
+                ProposalAttachmentType.TechnicalProposal);
+
+            if (uploaded != null)
+            {
+                _attachments.Add(uploaded);
+                Toast.ShowSuccess($"Lampiran '{file.Name}' berhasil diunggah.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Gagal mengunggah file: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteAttachment(Guid attachmentId)
+    {
+        if (ProposalId.HasValue)
+        {
+            var res = await ProposalClient.RemoveAttachmentAsync(ProposalId.Value, attachmentId);
+            if (res != null)
+            {
+                _attachments = res.Attachments.ToList();
+                Toast.ShowSuccess("Lampiran berhasil dihapus.");
+            }
+        }
+    }
+
+    private void NavigateBack()
+    {
+        if (ChallengeId.HasValue)
+            Navigation.NavigateTo($"/challenges/{ChallengeId.Value}");
+        else
+            Navigation.NavigateTo("/challenges");
+    }
+}

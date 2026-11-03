@@ -1,0 +1,492 @@
+@page "/proposals/reviews/{AssignmentId:guid}"
+@using Pavena.Application.Proposals.DTOs
+@using Pavena.Domain.Enums
+@using Pavena.Web.Services.Proposals
+@using Pavena.Web.Services.Auth
+@using Pavena.Web.Services.Toast
+@inject IProposalClient ProposalClient
+@inject NavigationManager Navigation
+@inject IToastService Toast
+@inject IScholarSessionService Session
+
+<div class="pv-review-workspace-container">
+    @if (_isLoading)
+    {
+        <PvLoading Text="Memuat ruang kerja evaluasi reviewer..." />
+    }
+    else if (_assignment == null || _proposal == null)
+    {
+        <PvEmptyState Title="Penugasan Tidak Ditemukan"
+                      Description="Penugasan evaluasi ini tidak tersedia atau Anda tidak memiliki akses reviewer."
+                      ActionText="Kembali"
+                      OnActionClick="@(() => Navigation.NavigateTo("/challenges"))" />
+    }
+    else
+    {
+        <div class="pv-page-header">
+            <div class="pv-breadcrumb">
+                <a href="/challenges" class="pv-breadcrumb-link">Tantangan Industri</a>
+                <span class="pv-breadcrumb-sep">/</span>
+                <a href="/proposals/@_proposal.Id" class="pv-breadcrumb-link">@_proposal.Title</a>
+                <span class="pv-breadcrumb-sep">/</span>
+                <span class="pv-breadcrumb-current">Evaluasi Peer Reviewer</span>
+            </div>
+            <div class="pv-header-row">
+                <div>
+                    <h1 class="pv-page-title">Ruang Evaluasi Reviewer Independen</h1>
+                    <p class="pv-page-subtitle">Penilaian Ilmiah Terstruktur Berbasis Rubrik Multi-Kriteria</p>
+                </div>
+                <div class="pv-header-actions">
+                    <button class="pv-btn pv-btn-outline" @onclick="@(() => Navigation.NavigateTo($"/proposals/{_proposal.Id}"))">Kembali</button>
+                    @if (_assignment.Status != ReviewAssignmentStatus.Completed && _assignment.Status != ReviewAssignmentStatus.Recused)
+                    {
+                        <button class="pv-btn pv-btn-primary" @onclick="SubmitAssessmentAsync" disabled="@(!_assignment.HasCoiDeclaration || _isSubmitting)">
+                            @if (_isSubmitting) { <span>Mengirim...</span> } else { <span>Kirim Penilaian Resmi</span> }
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- COI Declaration Banner -->
+        @if (!_assignment.HasCoiDeclaration)
+        {
+            <div class="pv-alert pv-alert-warning" style="margin-bottom: 1.5rem; border-width: 2px;">
+                <div class="pv-alert-icon">⚖️</div>
+                <div class="pv-alert-body" style="width: 100%;">
+                    <div style="font-weight: 700; font-size: 1rem; margin-bottom: 0.25rem;">
+                        Deklarasi Konflik Kepentingan (Conflict of Interest - COI) Wajib
+                    </div>
+                    <p style="font-size: 0.875rem; margin: 0 0 0.75rem 0;">
+                        Sebelum memberikan skor evaluasi, Anda wajib menyatakan ada atau tidaknya hubungan kelembagaan, kolaborasi riset aktif, atau kepentingan finansial dengan tim peneliti usulan ini.
+                    </p>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button class="pv-btn pv-btn-primary pv-btn-sm" @onclick="DeclareNoCoiAsync">
+                            ✅ Saya Menyatakan TIDAK ADA Konflik Kepentingan
+                        </button>
+                        <button class="pv-btn pv-btn-outline pv-btn-danger pv-btn-sm" @onclick="@(() => _showCoiRecusalModal = true)">
+                            ⚠️ Saya Memiliki Konflik Kepentingan (Mengundurkan Diri)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (_assignment.Status == ReviewAssignmentStatus.Recused)
+        {
+            <div class="pv-alert pv-alert-danger" style="margin-bottom: 1.5rem;">
+                <div class="pv-alert-icon">🚫</div>
+                <div class="pv-alert-body">
+                    <strong>Anda telah mengundurkan diri (Recused) dari evaluasi proposal ini.</strong>
+                    <div style="font-size: 0.8125rem; margin-top: 0.25rem;">Jenis Konflik: @_assignment.CoiType. Catatan: @_assignment.CoiDescription</div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="pv-alert pv-alert-success" style="margin-bottom: 1.5rem;">
+                <div class="pv-alert-icon">✅</div>
+                <div class="pv-alert-body">
+                    Deklarasi ketiadaan konflik kepentingan telah tercatat resmi pada @_assignment.CoiDeclaredAtUtc?.ToString("dd MMM yyyy HH:mm").
+                </div>
+            </div>
+        }
+
+        <div class="pv-review-grid">
+            <!-- Left Panel: Proposal Document Reader -->
+            <div class="pv-review-doc-panel">
+                <div class="pv-card" style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.75rem; color: var(--pv-color-text-muted); text-transform: uppercase; font-weight: 600;">Usulan Riset</div>
+                    <h2 style="font-size: 1.25rem; margin: 0.25rem 0 0.5rem 0; color: var(--pv-color-text-primary);">@_proposal.Title</h2>
+                    <div style="font-size: 0.8125rem; color: var(--pv-color-text-secondary); margin-bottom: 0.75rem;">
+                        <strong>Ketua Peneliti:</strong> @_proposal.LeadResearcherName | 
+                        <strong>Anggaran:</strong> @_proposal.Currency @_proposal.ProposedBudget.ToString("N0") | 
+                        <strong>Durasi:</strong> @_proposal.ProposedTimelineMonths Bulan
+                    </div>
+
+                    <div style="border-top: 1px solid var(--pv-color-border); padding-top: 1rem; display: flex; flex-direction: column; gap: 1rem; font-size: 0.875rem;">
+                        <div>
+                            <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--pv-color-primary);">Abstrak</h4>
+                            <p style="margin: 0; line-height: 1.5;">@_proposal.Abstract</p>
+                        </div>
+                        <div>
+                            <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--pv-color-primary);">Rumusan Masalah</h4>
+                            <p style="margin: 0; line-height: 1.5;">@_proposal.ProblemStatement</p>
+                        </div>
+                        <div>
+                            <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--pv-color-primary);">Tujuan Riset</h4>
+                            <p style="margin: 0; line-height: 1.5;">@_proposal.ResearchObjectives</p>
+                        </div>
+                        <div>
+                            <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--pv-color-primary);">Metodologi</h4>
+                            <p style="margin: 0; line-height: 1.5;">@_proposal.ProposedMethodology</p>
+                        </div>
+                        <div>
+                            <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--pv-color-primary);">Target Luaran</h4>
+                            <p style="margin: 0; line-height: 1.5;">@_proposal.ExpectedOutcomes</p>
+                        </div>
+                    </div>
+                </div>
+
+                @if (_proposal.Attachments.Any())
+                {
+                    <div class="pv-card">
+                        <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem;">Berkas Pendukung</h4>
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.8125rem;">
+                            @foreach (var att in _proposal.Attachments)
+                            {
+                                <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: var(--pv-color-surface-hover); border-radius: var(--pv-radius-sm);">
+                                    <span>📄 @att.FileName</span>
+                                    <span class="pv-badge">@att.AttachmentType</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Right Panel: Rubric Scoring Form -->
+            <div class="pv-review-form-panel">
+                <div class="pv-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--pv-color-border); padding-bottom: 0.75rem;">
+                        <h2 class="pv-section-title" style="margin: 0;">Rubrik Penilaian Multi-Dimensi</h2>
+                        <div class="pv-score-badge">
+                            Skor Komposit: <strong>@_calculatedOverallScore / 100</strong>
+                        </div>
+                    </div>
+
+                    <fieldset disabled="@(!_assignment.HasCoiDeclaration || _assignment.Status == ReviewAssignmentStatus.Recused || _assignment.Status == ReviewAssignmentStatus.Completed)" style="border: none; padding: 0; margin: 0;">
+                        <!-- 8 Criteria Sliders -->
+                        <div class="pv-rubric-items">
+                            <div class="pv-rubric-row">
+                                <div class="pv-rubric-label">
+                                    <strong>1. Kualitas & Kebaruan Teknis</strong>
+                                    <span>(0.0 - 10.0)</span>
+                                </div>
+                                <div class="pv-rubric-control">
+                                    <input type="range" min="0" max="10" step="0.5" class="pv-slider" @bind="_technicalMerit" @bind:after="RecalculateScore" />
+                                    <span class="pv-slider-val">@_technicalMerit</span>
+                                </div>
+                            </div>
+
+                            <div class="pv-rubric-row">
+                                <div class="pv-rubric-label">
+                                    <strong>2. Ketepatan Metodologi Riset</strong>
+                                    <span>(0.0 - 10.0)</span>
+                                </div>
+                                <div class="pv-rubric-control">
+                                    <input type="range" min="0" max="10" step="0.5" class="pv-slider" @bind="_methodology" @bind:after="RecalculateScore" />
+                                    <span class="pv-slider-val">@_methodology</span>
+                                </div>
+                            </div>
+
+                            <div class="pv-rubric-row">
+                                <div class="pv-rubric-label">
+                                    <strong>3. Kelayakan & Manajemen Risiko</strong>
+                                    <span>(0.0 - 10.0)</span>
+                                </div>
+                                <div class="pv-rubric-control">
+                                    <input type="range" min="0" max="10" step="0.5" class="pv-slider" @bind="_feasibility" @bind:after="RecalculateScore" />
+                                    <span class="pv-slider-val">@_feasibility</span>
+                                </div>
+                            </div>
+
+                            <div class="pv-rubric-row">
+                                <div class="pv-rubric-label">
+                                    <strong>4. Inovasi & Keunggulan Komparatif</strong>
+                                    <span>(0.0 - 10.0)</span>
+                                </div>
+                                <div class="pv-rubric-control">
+                                    <input type="range" min="0" max="10" step="0.5" class="pv-slider" @bind="_innovation" @bind:after="RecalculateScore" />
+                                    <span class="pv-slider-val">@_innovation</span>
+                                </div>
+                            </div>
+
+                            <div class="pv-rubric-row">
+                                <div class="pv-rubric-label">
+                                    <strong>5. Kewajaran Anggaran Riset</strong>
+                                    <span>(0.0 - 10.0)</span>
+                                </div>
+                                <div class="pv-rubric-control">
+                                    <input type="range" min="0" max="10" step="0.5" class="pv-slider" @bind="_budgetAdequacy" @bind:after="RecalculateScore" />
+                                    <span class="pv-slider-val">@_budgetAdequacy</span>
+                                </div>
+                            </div>
+
+                            <div class="pv-rubric-row">
+                                <div class="pv-rubric-label">
+                                    <strong>6. Rekam Jejak & Kualifikasi Tim</strong>
+                                    <span>(0.0 - 10.0)</span>
+                                </div>
+                                <div class="pv-rubric-control">
+                                    <input type="range" min="0" max="10" step="0.5" class="pv-slider" @bind="_teamQualification" @bind:after="RecalculateScore" />
+                                    <span class="pv-slider-val">@_teamQualification</span>
+                                </div>
+                            </div>
+
+                            <div class="pv-rubric-row">
+                                <div class="pv-rubric-label">
+                                    <strong>7. Potensi Dampak & Komersialisasi</strong>
+                                    <span>(0.0 - 10.0)</span>
+                                </div>
+                                <div class="pv-rubric-control">
+                                    <input type="range" min="0" max="10" step="0.5" class="pv-slider" @bind="_impactPotential" @bind:after="RecalculateScore" />
+                                    <span class="pv-slider-val">@_impactPotential</span>
+                                </div>
+                            </div>
+
+                            <div class="pv-rubric-row">
+                                <div class="pv-rubric-label">
+                                    <strong>8. Kesesuaian Scope Tantangan</strong>
+                                    <span>(0.0 - 10.0)</span>
+                                </div>
+                                <div class="pv-rubric-control">
+                                    <input type="range" min="0" max="10" step="0.5" class="pv-slider" @bind="_alignment" @bind:after="RecalculateScore" />
+                                    <span class="pv-slider-val">@_alignment</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Qualitative Feedback -->
+                        <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                            <div class="pv-form-group">
+                                <label class="pv-label">Kekuatan Proposal (Strengths) <span class="pv-required">*</span></label>
+                                <textarea class="pv-textarea" rows="3" @bind="_strengths" placeholder="Aspek unggul dari metodologi, kebaruan, atau kompetensi peneliti..."></textarea>
+                            </div>
+
+                            <div class="pv-form-group">
+                                <label class="pv-label">Kelemahan & Risiko (Weaknesses) <span class="pv-required">*</span></label>
+                                <textarea class="pv-textarea" rows="3" @bind="_weaknesses" placeholder="Potensi kendala teknis, gap pengujian, atau kekurangan justifikasi..."></textarea>
+                            </div>
+
+                            <div class="pv-form-group">
+                                <label class="pv-label">Saran Perbaikan Ilmiah <span class="pv-required">*</span></label>
+                                <textarea class="pv-textarea" rows="3" @bind="_recommendations" placeholder="Rekomendasi spesifik bagi peneliti untuk penyempurnaan usulan..."></textarea>
+                            </div>
+
+                            <div class="pv-form-group" style="background: rgba(220, 53, 69, 0.04); border: 1px dashed var(--pv-color-danger); padding: 0.75rem; border-radius: var(--pv-radius-md);">
+                                <label class="pv-label" style="color: var(--pv-color-danger); display: flex; align-items: center; gap: 0.25rem;">
+                                    🔒 Catatan Rahasia Khusus Sponsor Industri
+                                </label>
+                                <div style="font-size: 0.6875rem; color: var(--pv-color-text-muted); margin-bottom: 0.5rem;">
+                                    Bagian ini HANYA dapat dibaca oleh pihak sponsor dan tidak akan pernah dibagikan kepada peneliti usulan.
+                                </div>
+                                <textarea class="pv-textarea" rows="2" @bind="_confidentialRemarks" placeholder="Penilaian sensitif terkait kelayakan komersial, reputasi institusi, atau pertimbangan khusus..."></textarea>
+                            </div>
+
+                            <div class="pv-form-group">
+                                <label class="pv-label">Rekomendasi Akhir Reviewer <span class="pv-required">*</span></label>
+                                <select class="pv-input" @bind="_recommendation">
+                                    <option value="@AssessmentRecommendation.RecommendAccept">Rekomendasikan Diterima (Recommend Accept)</option>
+                                    <option value="@AssessmentRecommendation.RecommendRevision">Rekomendasikan Revisi (Recommend Revision)</option>
+                                    <option value="@AssessmentRecommendation.RecommendReject">Rekomendasikan Ditolak (Recommend Reject)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- COI Recusal Modal -->
+    @if (_showCoiRecusalModal)
+    {
+        <div class="pv-modal-backdrop">
+            <div class="pv-modal-card">
+                <h3 class="pv-modal-title">Deklarasi Konflik Kepentingan & Pengunduran Diri</h3>
+                <p style="font-size: 0.8125rem; color: var(--pv-color-text-secondary); margin-bottom: 1rem;">
+                    Berdasarkan tata kelola integritas Pavena, penugasan akan dicabut dan dialihkan ke reviewer independen lainnya.
+                </p>
+
+                <div class="pv-form-group">
+                    <label class="pv-label">Jenis Konflik Kepentingan <span class="pv-required">*</span></label>
+                    <select class="pv-input" @bind="_coiType">
+                        <option value="@CoiDeclarationType.InstitutionalProximity">Kedekatan Kelembagaan (Satu Afiliasi Institusi/Departemen)</option>
+                        <option value="@CoiDeclarationType.PastCollaboration">Kolaborasi Riset Aktif / Bersama dalam 3 Tahun Terakhir</option>
+                        <option value="@CoiDeclarationType.FinancialOrCommercial">Kepentingan Finansial / Komersial Terkait</option>
+                        <option value="@CoiDeclarationType.Other">Konflik Kepentingan Lainnya</option>
+                    </select>
+                </div>
+
+                <div class="pv-form-group">
+                    <label class="pv-label">Uraian Konflik <span class="pv-required">*</span></label>
+                    <textarea class="pv-textarea" rows="3" @bind="_coiDescription" placeholder="Uraikan alasan konflik kepentingan secara ringkas..."></textarea>
+                </div>
+
+                <div class="pv-modal-actions">
+                    <button class="pv-btn pv-btn-outline" @onclick="@(() => _showCoiRecusalModal = false)">Batal</button>
+                    <button class="pv-btn pv-btn-danger" @onclick="SubmitCoiRecusalAsync">Konfirmasi Pengunduran Diri</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid AssignmentId { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isSubmitting = false;
+
+    private ReviewAssignmentResponse? _assignment;
+    private ProposalDetailResponse? _proposal;
+
+    private bool _showCoiRecusalModal = false;
+    private CoiDeclarationType _coiType = CoiDeclarationType.InstitutionalProximity;
+    private string _coiDescription = string.Empty;
+
+    // Rubric Scores (0-10)
+    private decimal _technicalMerit = 8.0m;
+    private decimal _methodology = 8.0m;
+    private decimal _feasibility = 7.5m;
+    private decimal _innovation = 8.0m;
+    private decimal _budgetAdequacy = 7.5m;
+    private decimal _teamQualification = 8.5m;
+    private decimal _impactPotential = 8.0m;
+    private decimal _alignment = 8.5m;
+    private decimal _calculatedOverallScore = 80.0m;
+
+    private string _strengths = string.Empty;
+    private string _weaknesses = string.Empty;
+    private string _recommendations = string.Empty;
+    private string? _confidentialRemarks;
+    private AssessmentRecommendation _recommendation = AssessmentRecommendation.RecommendRevision;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var myReviews = await ProposalClient.GetMyReviewsAsync();
+            _assignment = myReviews.FirstOrDefault(r => r.Id == AssignmentId);
+
+            if (_assignment != null)
+            {
+                _proposal = await ProposalClient.GetByIdAsync(_assignment.ProposalId);
+
+                if (_assignment.Assessment != null)
+                {
+                    _technicalMerit = _assignment.Assessment.TechnicalMeritScore;
+                    _methodology = _assignment.Assessment.MethodologyScore;
+                    _feasibility = _assignment.Assessment.FeasibilityScore;
+                    _innovation = _assignment.Assessment.InnovationScore;
+                    _budgetAdequacy = _assignment.Assessment.BudgetAdequacyScore;
+                    _teamQualification = _assignment.Assessment.TeamQualificationScore;
+                    _impactPotential = _assignment.Assessment.ImpactPotentialScore;
+                    _alignment = _assignment.Assessment.AlignmentWithChallengeScore;
+                    _strengths = _assignment.Assessment.Strengths;
+                    _weaknesses = _assignment.Assessment.Weaknesses;
+                    _recommendations = _assignment.Assessment.RecommendationsForImprovement;
+                    _confidentialRemarks = _assignment.Assessment.ConfidentialRemarksForSponsor;
+                    _recommendation = _assignment.Assessment.Recommendation;
+                    _calculatedOverallScore = _assignment.Assessment.OverallScore;
+                }
+                else
+                {
+                    RecalculateScore();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Gagal memuat ruang evaluasi: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void RecalculateScore()
+    {
+        decimal sum = _technicalMerit + _methodology + _feasibility + _innovation +
+                      _budgetAdequacy + _teamQualification + _impactPotential + _alignment;
+        _calculatedOverallScore = Math.Round((sum / 8.0m) * 10.0m, 1);
+    }
+
+    private async Task DeclareNoCoiAsync()
+    {
+        try
+        {
+            var req = new DeclareCoiRequest(false, CoiDeclarationType.None, null);
+            var res = await ProposalClient.DeclareCoiAsync(AssignmentId, req);
+            if (res != null)
+            {
+                _assignment = res;
+                Toast.ShowSuccess("Deklarasi ketiadaan konflik kepentingan berhasil dicatat.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Gagal mencatat deklarasi COI: {ex.Message}");
+        }
+    }
+
+    private async Task SubmitCoiRecusalAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_coiDescription))
+        {
+            Toast.ShowError("Uraian konflik kepentingan wajib diisi.");
+            return;
+        }
+
+        try
+        {
+            var req = new DeclareCoiRequest(true, _coiType, _coiDescription);
+            var res = await ProposalClient.DeclareCoiAsync(AssignmentId, req);
+            if (res != null)
+            {
+                _assignment = res;
+                _showCoiRecusalModal = false;
+                Toast.ShowWarning("Pengunduran diri akibat konflik kepentingan telah dicatat.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Gagal memproses pengunduran diri: {ex.Message}");
+        }
+    }
+
+    private async Task SubmitAssessmentAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_strengths) || string.IsNullOrWhiteSpace(_weaknesses) || string.IsNullOrWhiteSpace(_recommendations))
+        {
+            Toast.ShowError("Seluruh kolom evaluasi kualitatif (Kekuatan, Kelemahan, Saran) wajib diisi.");
+            return;
+        }
+
+        _isSubmitting = true;
+        try
+        {
+            var req = new SubmitAssessmentRequest(
+                _technicalMerit,
+                _methodology,
+                _feasibility,
+                _innovation,
+                _budgetAdequacy,
+                _teamQualification,
+                _impactPotential,
+                _alignment,
+                _strengths,
+                _weaknesses,
+                _recommendations,
+                _confidentialRemarks,
+                _recommendation);
+
+            var assessment = await ProposalClient.SubmitAssessmentAsync(AssignmentId, req);
+            if (assessment != null)
+            {
+                Toast.ShowSuccess("Penilaian evaluasi proposal berhasil dikirim resmi!");
+                Navigation.NavigateTo($"/proposals/{_proposal!.Id}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Pengiriman evaluasi gagal: {ex.Message}");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

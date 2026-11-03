@@ -1,0 +1,695 @@
+@page "/proposals/{ProposalId:guid}"
+@using Pavena.Application.Proposals.DTOs
+@using Pavena.Domain.Enums
+@using Pavena.Web.Services.Proposals
+@using Pavena.Web.Services.Auth
+@using Pavena.Web.Services.Toast
+@inject IProposalClient ProposalClient
+@inject NavigationManager Navigation
+@inject IToastService Toast
+@inject IScholarSessionService Session
+
+<div class="pv-proposal-detail-container">
+    @if (_isLoading)
+    {
+        <PvLoading Text="Memuat detail proposal riset..." />
+    }
+    else if (_proposal == null)
+    {
+        <PvEmptyState Title="Proposal Tidak Ditemukan"
+                      Description="Proposal ini tidak tersedia atau Anda tidak memiliki hak akses untuk melihatnya."
+                      ActionText="Kembali ke Tantangan"
+                      OnActionClick="@(() => Navigation.NavigateTo("/challenges"))" />
+    }
+    else
+    {
+        <!-- Header & Breadcrumb -->
+        <div class="pv-page-header">
+            <div class="pv-breadcrumb">
+                <a href="/challenges" class="pv-breadcrumb-link">Tantangan Industri</a>
+                <span class="pv-breadcrumb-sep">/</span>
+                <a href="/challenges/@_proposal.ChallengeId" class="pv-breadcrumb-link">@_proposal.ChallengeTitle</a>
+                <span class="pv-breadcrumb-sep">/</span>
+                <span class="pv-breadcrumb-current">@_proposal.Title</span>
+            </div>
+
+            <div class="pv-detail-header-card">
+                <div class="pv-header-badges">
+                    <span class="pv-badge pv-badge-version">Versi @_proposal.SubmissionVersion</span>
+                    <span class="pv-badge @GetStatusBadgeClass(_proposal.Status)">@FormatStatus(_proposal.Status)</span>
+                    <span class="pv-badge pv-badge-confidential">🔒 @_proposal.Confidentiality</span>
+                    @if (_proposal.ConvertedProjectId.HasValue)
+                    {
+                        <span class="pv-badge pv-badge-success">🚀 Terkonversi ke Proyek</span>
+                    }
+                </div>
+
+                <h1 class="pv-proposal-title">@_proposal.Title</h1>
+
+                <div class="pv-meta-strip">
+                    <div class="pv-meta-item">
+                        <span class="pv-meta-label">Ketua Peneliti:</span>
+                        <span class="pv-meta-val">@_proposal.LeadResearcherName</span>
+                    </div>
+                    <div class="pv-meta-item">
+                        <span class="pv-meta-label">Sponsor Industri:</span>
+                        <span class="pv-meta-val">@_proposal.ChallengeOrganizationName</span>
+                    </div>
+                    <div class="pv-meta-item">
+                        <span class="pv-meta-label">Usulan Anggaran:</span>
+                        <span class="pv-meta-val font-semibold">@_proposal.Currency @_proposal.ProposedBudget.ToString("N0")</span>
+                    </div>
+                    <div class="pv-meta-item">
+                        <span class="pv-meta-label">Durasi:</span>
+                        <span class="pv-meta-val">@_proposal.ProposedTimelineMonths Bulan</span>
+                    </div>
+                    <div class="pv-meta-item">
+                        <span class="pv-meta-label">Diajukan:</span>
+                        <span class="pv-meta-val">@(_proposal.SubmittedAtUtc?.ToString("dd MMM yyyy HH:mm") ?? "Draf")</span>
+                    </div>
+                </div>
+
+                <!-- Action Toolbar -->
+                <div class="pv-action-toolbar">
+                    @if (_proposal.CanEdit)
+                    {
+                        <a href="/proposals/@_proposal.Id/edit" class="pv-btn pv-btn-outline pv-btn-sm">✏️ Edit Draf</a>
+                    }
+
+                    @if (_proposal.CanSubmit)
+                    {
+                        <button class="pv-btn pv-btn-primary pv-btn-sm" @onclick="SubmitProposalAsync">🚀 Ajukan Sekarang</button>
+                    }
+
+                    @if (_proposal.CanResubmit)
+                    {
+                        <button class="pv-btn pv-btn-primary pv-btn-sm" @onclick="() => _showResubmitModal = true">🔄 Ajukan Revisi (Resubmit)</button>
+                    }
+
+                    @if (_proposal.CanReview)
+                    {
+                        var callerAssignment = _proposal.ReviewAssignments.FirstOrDefault(r => r.ReviewerUserId == Session.CurrentUserId);
+                        if (callerAssignment != null)
+                        {
+                            <a href="/proposals/reviews/@callerAssignment.Id" class="pv-btn pv-btn-secondary pv-btn-sm">📝 Ruang Evaluasi Reviewer</a>
+                        }
+                    }
+
+                    @if (_proposal.CanDecide)
+                    {
+                        <button class="pv-btn pv-btn-outline pv-btn-sm" @onclick="() => _showAssignReviewerModal = true">👤 Tugaskan Reviewer</button>
+                        <button class="pv-btn pv-btn-secondary pv-btn-sm" @onclick="() => _showDecisionModal = true">⚖️ Beri Keputusan Sponsor</button>
+                    }
+
+                    @if (_proposal.CanConvert)
+                    {
+                        <button class="pv-btn pv-btn-success pv-btn-sm" @onclick="ConvertToProjectAsync" disabled="@_isConverting">
+                            @if (_isConverting) { <span>Mengonversi...</span> } else { <span>🚀 Konversi ke Proyek Riset</span> }
+                        </button>
+                    }
+
+                    @if (_proposal.ConvertedProjectId.HasValue)
+                    {
+                        <a href="/projects/@_proposal.ConvertedProjectId.Value" class="pv-btn pv-btn-outline pv-btn-sm">📂 Buka Proyek Riset</a>
+                    }
+
+                    @if (_proposal.CanWithdraw)
+                    {
+                        <button class="pv-btn pv-btn-text pv-btn-danger pv-btn-sm" @onclick="() => _showWithdrawModal = true">Tarik Usulan</button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_proposal.RevisionGuidance) && _proposal.Status == ProposalStatus.RevisionRequested)
+        {
+            <div class="pv-alert pv-alert-warning" style="margin-bottom: 1.5rem;">
+                <div class="pv-alert-icon">⚠️</div>
+                <div class="pv-alert-body">
+                    <strong>Catatan Revisi dari Sponsor:</strong>
+                    <div style="margin-top: 0.25rem;">@_proposal.RevisionGuidance</div>
+                </div>
+            </div>
+        }
+
+        <!-- Tabs Navigation -->
+        <div class="pv-tabs-nav">
+            <button class="pv-tab-btn @(_activeTab == "overview" ? "active" : "")" @onclick="@(() => _activeTab = "overview")">
+                Ringkasan Riset
+            </button>
+            <button class="pv-tab-btn @(_activeTab == "team" ? "active" : "")" @onclick="@(() => _activeTab = "team")">
+                Tim Peneliti (@_proposal.Investigators.Count)
+            </button>
+            <button class="pv-tab-btn @(_activeTab == "attachments" ? "active" : "")" @onclick="@(() => _activeTab = "attachments")">
+                Lampiran Dokumen (@_proposal.Attachments.Count)
+            </button>
+            <button class="pv-tab-btn @(_activeTab == "versions" ? "active" : "")" @onclick="@(() => _activeTab = "versions")">
+                Riwayat Versi (@_proposal.VersionSnapshots.Count)
+            </button>
+            <button class="pv-tab-btn @(_activeTab == "reviews" ? "active" : "")" @onclick="@(() => _activeTab = "reviews")">
+                Hasil Evaluasi (@_proposal.ReviewAssignments.Count)
+            </button>
+            <button class="pv-tab-btn @(_activeTab == "activity" ? "active" : "")" @onclick="@(() => _activeTab = "activity")">
+                Jejak Audit
+            </button>
+        </div>
+
+        <!-- Tab Contents -->
+        <div class="pv-tab-content">
+            @if (_activeTab == "overview")
+            {
+                <div class="pv-tab-pane">
+                    <div class="pv-card" style="margin-bottom: 1.5rem;">
+                        <h2 class="pv-section-title">Abstrak Riset</h2>
+                        <p class="pv-text-block">@_proposal.Abstract</p>
+                    </div>
+
+                    <div class="pv-card" style="margin-bottom: 1.5rem;">
+                        <h2 class="pv-section-title">Rumusan Masalah</h2>
+                        <p class="pv-text-block">@_proposal.ProblemStatement</p>
+                    </div>
+
+                    <div class="pv-card" style="margin-bottom: 1.5rem;">
+                        <h2 class="pv-section-title">Tujuan Penelitian (Objectives)</h2>
+                        <p class="pv-text-block">@_proposal.ResearchObjectives</p>
+                    </div>
+
+                    <div class="pv-card" style="margin-bottom: 1.5rem;">
+                        <h2 class="pv-section-title">Metodologi & Pendekatan Ilmiah</h2>
+                        <p class="pv-text-block">@_proposal.ProposedMethodology</p>
+                    </div>
+
+                    <div class="pv-card" style="margin-bottom: 1.5rem;">
+                        <h2 class="pv-section-title">Target Luaran & Dampak Terapan</h2>
+                        <p class="pv-text-block">@_proposal.ExpectedOutcomes</p>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_proposal.FundingJustification))
+                    {
+                        <div class="pv-card">
+                            <h2 class="pv-section-title">Justifikasi Alokasi Anggaran</h2>
+                            <p class="pv-text-block">@_proposal.FundingJustification</p>
+                        </div>
+                    }
+                </div>
+            }
+            else if (_activeTab == "team")
+            {
+                <div class="pv-tab-pane">
+                    <div class="pv-card">
+                        <h2 class="pv-section-title">Susunan Tim Peneliti</h2>
+                        <div class="pv-investigators-list">
+                            @foreach (var inv in _proposal.Investigators)
+                            {
+                                <div class="pv-investigator-card">
+                                    <div class="pv-inv-avatar">
+                                        <PvAvatar DisplayName="@inv.FullName" AvatarUrl="@inv.AvatarUrl" Size="48" />
+                                    </div>
+                                    <div class="pv-inv-info">
+                                        <div class="pv-inv-name">@inv.FullName</div>
+                                        <div class="pv-inv-role">@inv.Role</div>
+                                        @if (!string.IsNullOrEmpty(inv.InstitutionName))
+                                        {
+                                            <div class="pv-inv-institution">🏛️ @inv.InstitutionName</div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(inv.ContributionDescription))
+                                        {
+                                            <div class="pv-inv-contrib">"@inv.ContributionDescription"</div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (_activeTab == "attachments")
+            {
+                <div class="pv-tab-pane">
+                    <div class="pv-card">
+                        <h2 class="pv-section-title">Dokumen Lampiran Terverifikasi</h2>
+                        @if (!_proposal.Attachments.Any())
+                        {
+                            <p style="color: var(--pv-color-text-muted); font-size: 0.875rem;">Tidak ada dokumen lampiran pada proposal ini.</p>
+                        }
+                        else
+                        {
+                            <div class="pv-attachments-table">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                                    <thead>
+                                        <tr style="border-bottom: 1px solid var(--pv-color-border); text-align: left;">
+                                            <th style="padding: 0.75rem 0.5rem;">Nama Berkas</th>
+                                            <th style="padding: 0.75rem 0.5rem;">Kategori</th>
+                                            <th style="padding: 0.75rem 0.5rem;">Ukuran</th>
+                                            <th style="padding: 0.75rem 0.5rem;">SHA256</th>
+                                            <th style="padding: 0.75rem 0.5rem;">Diunggah</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var att in _proposal.Attachments)
+                                        {
+                                            <tr style="border-bottom: 1px solid var(--pv-color-border);">
+                                                <td style="padding: 0.75rem 0.5rem; font-weight: 600;">📄 @att.FileName</td>
+                                                <td style="padding: 0.75rem 0.5rem;"><span class="pv-badge">@att.AttachmentType</span></td>
+                                                <td style="padding: 0.75rem 0.5rem;">@(att.FileSizeBytes / 1024) KB</td>
+                                                <td style="padding: 0.75rem 0.5rem; font-family: monospace; font-size: 0.75rem;">@att.FileHashSha256[..12]...</td>
+                                                <td style="padding: 0.75rem 0.5rem;">@att.UploadedAtUtc.ToString("dd MMM yyyy")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (_activeTab == "versions")
+            {
+                <div class="pv-tab-pane">
+                    <div class="pv-card">
+                        <h2 class="pv-section-title">Riwayat Snapshot Versi Usulan</h2>
+                        @if (!_proposal.VersionSnapshots.Any())
+                        {
+                            <p style="color: var(--pv-color-text-muted); font-size: 0.875rem;">Proposal masih dalam versi awal (Versi 1). Riwayat snapshot dibuat saat terjadi resubmisi revisi.</p>
+                        }
+                        else
+                        {
+                            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                                @foreach (var v in _proposal.VersionSnapshots)
+                                {
+                                    <div style="padding: 1rem; border: 1px solid var(--pv-color-border); border-radius: var(--pv-radius-md); background: var(--pv-color-surface);">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                            <span class="pv-badge pv-badge-version">Versi @v.VersionNumber</span>
+                                            <span style="font-size: 0.75rem; color: var(--pv-color-text-muted);">@v.CreatedAtUtc.ToString("dd MMM yyyy HH:mm") oleh @v.CreatedByName</span>
+                                        </div>
+                                        <div style="font-weight: 600; font-size: 0.875rem; color: var(--pv-color-text-primary);">
+                                            Ringkasan Perubahan: @(v.ChangeSummary ?? "Tidak ada catatan perubahan.")
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (_activeTab == "reviews")
+            {
+                <div class="pv-tab-pane">
+                    <div class="pv-card">
+                        <h2 class="pv-section-title">Hasil Penilaian Peer Review & Rubrik Evaluasi</h2>
+                        @if (!_proposal.ReviewAssignments.Any())
+                        {
+                            <p style="color: var(--pv-color-text-muted); font-size: 0.875rem;">Belum ada penugasan reviewer independen atau hasil penilaian masih dalam isolasi blind assessment.</p>
+                        }
+                        else
+                        {
+                            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                                @foreach (var r in _proposal.ReviewAssignments)
+                                {
+                                    <div style="padding: 1.25rem; border: 1px solid var(--pv-color-border); border-radius: var(--pv-radius-md); background: var(--pv-color-surface);">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                            <div>
+                                                <span style="font-weight: 600; font-size: 0.9375rem;">@r.ReviewerName</span>
+                                                <span class="pv-badge" style="margin-left: 0.5rem;">@r.Status</span>
+                                            </div>
+                                            @if (r.Assessment != null)
+                                            {
+                                                <div style="font-weight: 700; font-size: 1.125rem; color: var(--pv-color-primary);">
+                                                    Skor: @r.Assessment.OverallScore / 100
+                                                </div>
+                                            }
+                                        </div>
+
+                                        @if (r.Assessment != null)
+                                        {
+                                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 1rem; font-size: 0.75rem; background: var(--pv-color-surface-hover); padding: 0.75rem; border-radius: var(--pv-radius-sm);">
+                                                <div>Teknis: <strong>@r.Assessment.TechnicalMeritScore/10</strong></div>
+                                                <div>Metodologi: <strong>@r.Assessment.MethodologyScore/10</strong></div>
+                                                <div>Kelayakan: <strong>@r.Assessment.FeasibilityScore/10</strong></div>
+                                                <div>Inovasi: <strong>@r.Assessment.InnovationScore/10</strong></div>
+                                                <div>Anggaran: <strong>@r.Assessment.BudgetAdequacyScore/10</strong></div>
+                                                <div>Kualifikasi Tim: <strong>@r.Assessment.TeamQualificationScore/10</strong></div>
+                                                <div>Dampak: <strong>@r.Assessment.ImpactPotentialScore/10</strong></div>
+                                                <div>Kesesuaian: <strong>@r.Assessment.AlignmentWithChallengeScore/10</strong></div>
+                                            </div>
+
+                                            <div style="font-size: 0.875rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                                                <div><strong>Kekuatan:</strong> @r.Assessment.Strengths</div>
+                                                <div><strong>Kelemahan:</strong> @r.Assessment.Weaknesses</div>
+                                                <div><strong>Saran Perbaikan:</strong> @r.Assessment.RecommendationsForImprovement</div>
+                                                @if (!string.IsNullOrEmpty(r.Assessment.ConfidentialRemarksForSponsor))
+                                                {
+                                                    <div style="background: rgba(220, 53, 69, 0.05); border-left: 3px solid var(--pv-color-danger); padding: 0.5rem;">
+                                                        <strong>Catatan Rahasia Sponsor:</strong> @r.Assessment.ConfidentialRemarksForSponsor
+                                                    </div>
+                                                }
+                                                <div><strong>Rekomendasi:</strong> <span class="pv-badge">@r.Assessment.Recommendation</span></div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p style="font-size: 0.8125rem; color: var(--pv-color-text-muted); margin: 0;">Penilaian sedang diproses oleh reviewer.</p>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (_activeTab == "activity")
+            {
+                <div class="pv-tab-pane">
+                    <div class="pv-card">
+                        <h2 class="pv-section-title">Jejak Audit & Histori Aktivitas</h2>
+                        <div class="pv-timeline">
+                            @foreach (var log in _proposal.ActivityLogs)
+                            {
+                                <div class="pv-timeline-item">
+                                    <div class="pv-timeline-dot"></div>
+                                    <div class="pv-timeline-content">
+                                        <div class="pv-timeline-header">
+                                            <span class="pv-timeline-actor">@log.ActorName</span>
+                                            <span class="pv-timeline-time">@log.CreatedAtUtc.ToString("dd MMM yyyy HH:mm")</span>
+                                        </div>
+                                        <div class="pv-timeline-desc">@log.Description</div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Modals -->
+    @if (_showResubmitModal)
+    {
+        <div class="pv-modal-backdrop">
+            <div class="pv-modal-card">
+                <h3 class="pv-modal-title">Ajukan Revisi Proposal (Resubmit)</h3>
+                <p style="font-size: 0.8125rem; color: var(--pv-color-text-secondary); margin-bottom: 1rem;">
+                    Usulan akan dinaikkan ke versi @(_proposal!.SubmissionVersion + 1). Berikan ringkasan perbaikan yang telah dilakukan.
+                </p>
+
+                <div class="pv-form-group">
+                    <label class="pv-label">Ringkasan Perubahan <span class="pv-required">*</span></label>
+                    <textarea class="pv-textarea" rows="4" @bind="_resubmitChangeSummary" placeholder="Jelaskan perbaikan metodologi, justifikasi biaya, atau klarifikasi yang diminta sponsor..."></textarea>
+                </div>
+
+                <div class="pv-modal-actions">
+                    <button class="pv-btn pv-btn-outline" @onclick="@(() => _showResubmitModal = false)">Batal</button>
+                    <button class="pv-btn pv-btn-primary" @onclick="ResubmitProposalAsync">Kirim Revisi</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_showWithdrawModal)
+    {
+        <div class="pv-modal-backdrop">
+            <div class="pv-modal-card">
+                <h3 class="pv-modal-title">Tarik Usulan Proposal</h3>
+                <p style="font-size: 0.8125rem; color: var(--pv-color-danger); margin-bottom: 1rem;">
+                    Tindakan ini akan membatalkan usulan proposal dari proses evaluasi sponsor.
+                </p>
+
+                <div class="pv-form-group">
+                    <label class="pv-label">Alasan Penarikan</label>
+                    <textarea class="pv-textarea" rows="3" @bind="_withdrawReason" placeholder="Opsional: jelaskan alasan penarikan usulan..."></textarea>
+                </div>
+
+                <div class="pv-modal-actions">
+                    <button class="pv-btn pv-btn-outline" @onclick="@(() => _showWithdrawModal = false)">Batal</button>
+                    <button class="pv-btn pv-btn-danger" @onclick="WithdrawProposalAsync">Tarik Proposal</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_showDecisionModal)
+    {
+        <div class="pv-modal-backdrop">
+            <div class="pv-modal-card">
+                <h3 class="pv-modal-title">Keputusan Sponsor Industri</h3>
+
+                <div class="pv-form-group">
+                    <label class="pv-label">Tindakan Keputusan <span class="pv-required">*</span></label>
+                    <select class="pv-input" @bind="_decisionAction">
+                        <option value="Accept">Terima Proposal (Accept & Award)</option>
+                        <option value="RequestRevision">Minta Revisi (Request Revision)</option>
+                        <option value="Reject">Tolak Usulan (Reject)</option>
+                    </select>
+                </div>
+
+                <div class="pv-form-group">
+                    <label class="pv-label">Catatan Keputusan / Panduan Revisi</label>
+                    <textarea class="pv-textarea" rows="4" @bind="_decisionNotes" placeholder="Catatan evaluasi resmi dari sponsor industri..."></textarea>
+                </div>
+
+                <div class="pv-modal-actions">
+                    <button class="pv-btn pv-btn-outline" @onclick="@(() => _showDecisionModal = false)">Batal</button>
+                    <button class="pv-btn pv-btn-primary" @onclick="ApplyDecisionAsync">Simpan Keputusan</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_showAssignReviewerModal)
+    {
+        <div class="pv-modal-backdrop">
+            <div class="pv-modal-card">
+                <h3 class="pv-modal-title">Tugaskan Reviewer Independen</h3>
+                <p style="font-size: 0.8125rem; color: var(--pv-color-text-secondary); margin-bottom: 1rem;">
+                    Sistem secara otomatis memeriksa larangan self-review, blok bilateral, dan deklarasi konflik kepentingan.
+                </p>
+
+                <div class="pv-form-group">
+                    <label class="pv-label">User ID Reviewer <span class="pv-required">*</span></label>
+                    <input type="text" class="pv-input" @bind="_assignReviewerUserId" placeholder="Masukkan GUID User ID Reviewer..." />
+                </div>
+
+                <div class="pv-modal-actions">
+                    <button class="pv-btn pv-btn-outline" @onclick="@(() => _showAssignReviewerModal = false)">Batal</button>
+                    <button class="pv-btn pv-btn-primary" @onclick="AssignReviewerAsync">Tugaskan</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid ProposalId { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isConverting = false;
+    private string _activeTab = "overview";
+
+    private ProposalDetailResponse? _proposal;
+
+    private bool _showResubmitModal = false;
+    private string _resubmitChangeSummary = string.Empty;
+
+    private bool _showWithdrawModal = false;
+    private string _withdrawReason = string.Empty;
+
+    private bool _showDecisionModal = false;
+    private string _decisionAction = "Accept";
+    private string _decisionNotes = string.Empty;
+
+    private bool _showAssignReviewerModal = false;
+    private string _assignReviewerUserId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProposalAsync();
+    }
+
+    private async Task LoadProposalAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _proposal = await ProposalClient.GetByIdAsync(ProposalId);
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Gagal memuat proposal: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SubmitProposalAsync()
+    {
+        try
+        {
+            var res = await ProposalClient.SubmitAsync(ProposalId);
+            if (res != null)
+            {
+                _proposal = res;
+                Toast.ShowSuccess("Proposal berhasil diajukan untuk proses evaluasi sponsor.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Pengajuan proposal gagal: {ex.Message}");
+        }
+    }
+
+    private async Task ResubmitProposalAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_resubmitChangeSummary))
+        {
+            Toast.ShowError("Ringkasan perubahan wajib diisi.");
+            return;
+        }
+
+        try
+        {
+            var req = new ResubmitProposalRequest(
+                _resubmitChangeSummary,
+                _proposal!.Title,
+                _proposal.Abstract,
+                _proposal.ProblemStatement,
+                _proposal.ResearchObjectives,
+                _proposal.ProposedMethodology,
+                _proposal.ExpectedOutcomes,
+                _proposal.ProposedTimelineMonths,
+                _proposal.ProposedBudget,
+                _proposal.Currency,
+                _proposal.FundingJustification);
+
+            var res = await ProposalClient.ResubmitAsync(ProposalId, req);
+            if (res != null)
+            {
+                _proposal = res;
+                _showResubmitModal = false;
+                Toast.ShowSuccess("Revisi proposal berhasil diajukan.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Gagal mengajukan revisi: {ex.Message}");
+        }
+    }
+
+    private async Task WithdrawProposalAsync()
+    {
+        try
+        {
+            var res = await ProposalClient.WithdrawAsync(ProposalId, _withdrawReason);
+            if (res != null)
+            {
+                _proposal = res;
+                _showWithdrawModal = false;
+                Toast.ShowWarning("Proposal telah ditarik.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Gagal menarik proposal: {ex.Message}");
+        }
+    }
+
+    private async Task ApplyDecisionAsync()
+    {
+        try
+        {
+            var req = new SponsorDecisionRequest(_decisionAction, _decisionNotes);
+            var res = await ProposalClient.ApplySponsorDecisionAsync(ProposalId, req);
+            if (res != null)
+            {
+                _proposal = res;
+                _showDecisionModal = false;
+                Toast.ShowSuccess($"Keputusan '{_decisionAction}' berhasil dicatat.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Gagal menyimpan keputusan: {ex.Message}");
+        }
+    }
+
+    private async Task AssignReviewerAsync()
+    {
+        if (!Guid.TryParse(_assignReviewerUserId, out var reviewerId))
+        {
+            Toast.ShowError("User ID Reviewer tidak valid.");
+            return;
+        }
+
+        try
+        {
+            var req = new AssignReviewerRequest(reviewerId);
+            var res = await ProposalClient.AssignReviewerAsync(ProposalId, req);
+            if (res != null)
+            {
+                _showAssignReviewerModal = false;
+                _assignReviewerUserId = string.Empty;
+                Toast.ShowSuccess("Reviewer berhasil ditugaskan.");
+                await LoadProposalAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Penugasan reviewer gagal: {ex.Message}");
+        }
+    }
+
+    private async Task ConvertToProjectAsync()
+    {
+        _isConverting = true;
+        try
+        {
+            var req = new ConvertProposalRequest();
+            var res = await ProposalClient.ConvertToProjectAsync(ProposalId, req);
+            if (res != null)
+            {
+                Toast.ShowSuccess($"Proposal berhasil dikonversi ke Proyek Riset '{res.ProjectTitle}'!");
+                Navigation.NavigateTo($"/projects/{res.ProjectId}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Konversi gagal: {ex.Message}");
+        }
+        finally
+        {
+            _isConverting = false;
+        }
+    }
+
+    private static string FormatStatus(ProposalStatus status) => status switch
+    {
+        ProposalStatus.Draft => "Draf",
+        ProposalStatus.Submitted => "Diajukan",
+        ProposalStatus.EligibilityReview => "Evaluasi Kelayakan",
+        ProposalStatus.UnderReview => "Dalam Penilaian",
+        ProposalStatus.RevisionRequested => "Perlu Revisi",
+        ProposalStatus.Resubmitted => "Revisi Diajukan",
+        ProposalStatus.Accepted => "Diterima / Awarded",
+        ProposalStatus.Rejected => "Ditolak",
+        ProposalStatus.Withdrawn => "Ditarik",
+        ProposalStatus.ConvertedToProject => "Terkonversi ke Proyek",
+        _ => status.ToString()
+    };
+
+    private static string GetStatusBadgeClass(ProposalStatus status) => status switch
+    {
+        ProposalStatus.Draft => "pv-badge-draft",
+        ProposalStatus.Submitted => "pv-badge-info",
+        ProposalStatus.EligibilityReview => "pv-badge-info",
+        ProposalStatus.UnderReview => "pv-badge-primary",
+        ProposalStatus.RevisionRequested => "pv-badge-warning",
+        ProposalStatus.Resubmitted => "pv-badge-info",
+        ProposalStatus.Accepted => "pv-badge-success",
+        ProposalStatus.Rejected => "pv-badge-danger",
+        ProposalStatus.Withdrawn => "pv-badge-secondary",
+        ProposalStatus.ConvertedToProject => "pv-badge-success",
+        _ => "pv-badge-secondary"
+    };
+}

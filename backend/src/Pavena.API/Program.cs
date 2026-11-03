@@ -30,6 +30,7 @@ builder.Services.AddScoped<IAuthorizationHandler, DocumentAuthorizationHandler>(
 builder.Services.AddScoped<IAuthorizationHandler, OrganizationAuthorizationHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, PostAuthorizationHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, ChallengeAuthorizationHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, ProposalAuthorizationHandler>();
 
 // 4. Policy-Based Authorization
 builder.Services.AddAuthorization(options =>

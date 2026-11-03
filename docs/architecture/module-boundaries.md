@@ -55,5 +55,25 @@ graph TD
 | **Organizations** | University, school, company, research institute entities, departments, and memberships. | **Full Implementation** |
 | **Social Graph** | Mutual connections, one-way follows, user blocks. | **Domain & Database Foundation** |
 | **Research Workspaces** | Research projects, project memberships, invitations, tasks, milestones. | **Domain & Database Foundation** |
-| **Documents & Collaboration**| WYSIWYG & LaTeX documents, collaborator ACL, CRDT snapshot metadata. | **Domain & Database Foundation** |
+| **Documents & Collaboration**| WYSIWYG & LaTeX documents, collaborator ACL, CRDT snapshot metadata. | **Full Implementation (Milestone N)** |
 | **Industry Challenges (Hilir)**| Sponsored challenges, FSM lifecycle, two-tier NDA gating, eligibility verification. | **Full Implementation (Milestone O)** |
+| **Research Proposals & Review (Hilir)**| Proposal lifecycle FSM, multi-criteria rubric scoring, blind peer isolation, reviewer COI recusal, idempotent project conversion. | **Full Implementation (Milestone P)** |
+
+---
+
+## 3. Milestone P: Research Proposals & Review Workflow Bounded Context
+
+### Aggregate Roots & Bounded Boundaries
+- **Primary Aggregate Root:** `ResearchProposal` (`Pavena.Domain.Entities.Proposals.ResearchProposal`)
+- **Key Sub-Entities:** `ProposalInvestigator`, `ProposalResearchDomain`, `ProposalExpertise`, `ProposalAttachment`, `ProposalVersionSnapshot`, `ProposalReviewAssignment`, `ProposalAssessment`, `ProposalActivityLog`.
+- **Relationship to Other Aggregates:**
+  - Belongs to `IndustryChallenge` (Hilir problem statement).
+  - Can be converted transactionally and idempotently into `ResearchProject` (Milestone M/N aggregate) upon sponsor acceptance.
+  - Traceability preserved via `OriginType.IndustryChallenge`, `SourceChallengeId`, and `SourceProposalId`.
+
+### Architectural Invariants Enforced
+1. **Blind Peer Review Isolation:** Reviewers only observe their own assignment and assessment; peer reviewer identities and assessments are concealed.
+2. **Reviewer Conflict of Interest (COI) Governance:** Self-review and investigator-review are strictly forbidden (HTTP 400); interpersonal blocks and institutional proximity require formal declaration or recusal.
+3. **Anti-Enumeration Concealment (404):** Unauthorized read attempts for proposals yield HTTP 404 (not HTTP 403) to prevent unauthorized enumeration of confidential commercial research proposals.
+4. **Idempotent Project Conversion:** Repeated conversion invocations for an accepted proposal return the existing project details without instantiating duplicate projects.
+5. **Multi-Criteria Rubric Scoring:** Standardized 8-dimension rubric (0.00 to 10.00 per criterion) with composite score scaled to 100.00.

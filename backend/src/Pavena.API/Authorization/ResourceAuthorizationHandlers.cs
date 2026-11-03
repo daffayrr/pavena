@@ -6,6 +6,7 @@ using Pavena.Domain.Entities.Challenges;
 using Pavena.Domain.Entities.Documents;
 using Pavena.Domain.Entities.Identity;
 using Pavena.Domain.Entities.Organizations;
+using Pavena.Domain.Entities.Proposals;
 using Pavena.Domain.Entities.Research;
 using Pavena.Domain.Entities.Social;
 using Pavena.Application.Common.Authorization;
@@ -442,4 +443,90 @@ public class ChallengeAuthorizationHandler : AuthorizationHandler<ResourceOperat
         }
     }
 }
+
+public class ProposalAuthorizationHandler : AuthorizationHandler<ResourceOperationRequirement, ResearchProposal>
+{
+    private readonly IPavenaDbContext _dbContext;
+
+    public ProposalAuthorizationHandler(IPavenaDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
+    protected override async Task HandleRequirementAsync(
+        AuthorizationHandlerContext context,
+        ResourceOperationRequirement requirement,
+        ResearchProposal proposal)
+    {
+        var userIdClaim = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var currentUserId))
+        {
+            return;
+        }
+
+        // Platform Superadmin / Platform Admin bypass
+        if (context.User.IsInRole(PlatformRole.Superadmin) || context.User.IsInRole(PlatformRole.PlatformAdmin))
+        {
+            context.Succeed(requirement);
+            return;
+        }
+
+        var isLead = proposal.LeadResearcherId == currentUserId;
+        var isInvestigator = proposal.Investigators.Any(i => i.UserId == currentUserId);
+
+        var isSponsorAdmin = false;
+        if (proposal.Challenge?.OrganizationId != null)
+        {
+            isSponsorAdmin = await _dbContext.OrganizationMemberships
+                .AsNoTracking()
+                .AnyAsync(m => m.OrganizationId == proposal.Challenge.OrganizationId &&
+                               m.UserId == currentUserId &&
+                               m.Role == OrgMembershipRole.OrganizationAdmin &&
+                               m.IsActive);
+        }
+
+        var isReviewer = proposal.ReviewAssignments.Any(r => r.ReviewerUserId == currentUserId);
+
+        // 1. Read
+        if (requirement.Operation == ResourceOperation.Read)
+        {
+            if (isLead || isInvestigator || isSponsorAdmin || isReviewer)
+            {
+                context.Succeed(requirement);
+            }
+            return;
+        }
+
+        // 2. Update / Resubmit
+        if (requirement.Operation == ResourceOperation.Update)
+        {
+            if (isLead && (proposal.Status == ProposalStatus.Draft || proposal.Status == ProposalStatus.RevisionRequested))
+            {
+                context.Succeed(requirement);
+            }
+            return;
+        }
+
+        // 3. Delete / Withdraw
+        if (requirement.Operation == ResourceOperation.Delete)
+        {
+            if (isLead && proposal.Status != ProposalStatus.Accepted && proposal.Status != ProposalStatus.ConvertedToProject && proposal.Status != ProposalStatus.Withdrawn)
+            {
+                context.Succeed(requirement);
+            }
+            return;
+        }
+
+        // 4. Decision / Conversion
+        if (requirement.Operation == ResourceOperation.Publish || requirement.Operation == ResourceOperation.Archive)
+        {
+            if (isSponsorAdmin)
+            {
+                context.Succeed(requirement);
+            }
+            return;
+        }
+    }
+}
+
 
