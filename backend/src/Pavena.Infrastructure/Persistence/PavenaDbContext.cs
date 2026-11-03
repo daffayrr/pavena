@@ -56,5 +56,25 @@ public class PavenaDbContext : IdentityDbContext<User, PlatformRole, Guid>, IPav
 
         // Apply domain configurations
         builder.ApplyConfigurationsFromAssembly(typeof(PavenaDbContext).Assembly);
+
+        // Adjust provider-specific check constraints if PostgreSQL
+        if (Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            builder.Entity<Connection>().ToTable("connections", t =>
+            {
+                t.HasCheckConstraint("chk_conn_no_self", "\"RequesterUserId\" <> \"AddresseeUserId\"");
+                t.HasCheckConstraint("chk_conn_canonical_order", "\"CanonicalUserA\" < \"CanonicalUserB\"");
+            });
+
+            builder.Entity<UserBlock>().ToTable("user_blocks", t =>
+            {
+                t.HasCheckConstraint("chk_user_blocks_no_self", "\"BlockerUserId\" <> \"BlockedUserId\"");
+            });
+
+            builder.Entity<ResearchProject>().ToTable("research_projects", t =>
+            {
+                t.HasCheckConstraint("chk_rp_single_owner", "(\"OwnerUserId\" IS NOT NULL AND \"OwnerOrganizationId\" IS NULL) OR (\"OwnerUserId\" IS NULL AND \"OwnerOrganizationId\" IS NOT NULL)");
+            });
+        }
     }
 }

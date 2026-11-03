@@ -7,9 +7,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Pavena.Application.Common.Interfaces;
 using Pavena.Application.Identity.Interfaces;
+using Pavena.Application.Social.Interfaces;
 using Pavena.Domain.Entities.Identity;
 using Pavena.Infrastructure.Identity;
 using Pavena.Infrastructure.Persistence;
+using Pavena.Infrastructure.Social;
 
 namespace Pavena.Infrastructure;
 
@@ -95,6 +97,9 @@ public static class DependencyInjection
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IUserProfileService, UserProfileService>();
+        services.AddScoped<IConnectionService, ConnectionService>();
+        services.AddScoped<IFollowService, FollowService>();
+        services.AddScoped<IBlockService, BlockService>();
         services.AddScoped<DatabaseSeeder>();
 
         return services;

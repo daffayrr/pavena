@@ -35,5 +35,7 @@ public interface IPavenaDbContext
     DbSet<Document> Documents { get; }
     DbSet<DocumentCollaborator> DocumentCollaborators { get; }
 
+    Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
